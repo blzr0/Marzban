@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/gozargah/marzban" target="_blank" rel="noopener noreferrer">
+  <a href="https://github.com/blzr0/Marzban" target="_blank" rel="noopener noreferrer">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Gozargah/Marzban-docs/raw/master/screenshots/logo-dark.png">
       <img width="160" height="160" src="https://github.com/Gozargah/Marzban-docs/raw/master/screenshots/logo-light.png">
@@ -16,13 +16,13 @@
 <br/>
 <p align="center">
     <a href="#">
-        <img src="https://img.shields.io/github/actions/workflow/status/gozargah/marzban/build.yml?style=flat-square" />
+        <img src="https://img.shields.io/github/actions/workflow/status/blzr0/marzban/build.yml?style=flat-square" />
     </a>
-    <a href="https://hub.docker.com/r/gozargah/marzban" target="_blank">
-        <img src="https://img.shields.io/docker/pulls/gozargah/marzban?style=flat-square&logo=docker" />
+    <a href="https://ghcr.io/blzr0/marzban" target="_blank">
+        <img src="https://img.shields.io/badge/ghcr.io-blzr0%2Fmarzban-blue?style=flat-square&logo=docker" />
     </a>
     <a href="#">
-        <img src="https://img.shields.io/github/license/gozargah/marzban?style=flat-square" />
+        <img src="https://img.shields.io/github/license/blzr0/Marzban?style=flat-square" />
     </a>
     <a href="https://t.me/gozargah_marzban" target="_blank">
         <img src="https://img.shields.io/badge/telegram-group-blue?style=flat-square&logo=telegram" />
@@ -31,7 +31,7 @@
         <img src="https://img.shields.io/badge/twitter-commiunity-blue?style=flat-square&logo=twitter" />
     </a>
     <a href="#">
-        <img src="https://img.shields.io/github/stars/gozargah/marzban?style=social" />
+        <img src="https://img.shields.io/github/stars/blzr0/Marzban?style=social" />
     </a>
 </p>
 
@@ -54,7 +54,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gozargah/marzban" target="_blank" rel="noopener noreferrer" >
+  <a href="https://github.com/blzr0/Marzban" target="_blank" rel="noopener noreferrer" >
     <img src="https://github.com/Gozargah/Marzban-docs/raw/master/screenshots/preview.png" alt="Marzban screenshots" width="600" height="auto">
   </a>
 </p>
@@ -111,18 +111,18 @@ Marzban удобен в использовании, многофункциона
 Установка Marzban с базой данных SQLite (по умолчанию):
 
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install
 ```
 
 Установка Marzban с базой данных MySQL:
 
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install --database mysql
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install --database mysql
 ```
 
 Установка Marzban с базой данных MariaDB:
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install --database mariadb
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install --database mariadb
 ```
 
 Когда установка будет завершена:
@@ -172,7 +172,7 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 Клонируйте этот проект и установите зависимости (Вам нужен Python >= 3.8):
 
 ```bash
-git clone https://github.com/Gozargah/Marzban.git
+git clone https://github.com/blzr0/Marzban.git
 cd Marzban
 wget -qO- https://bootstrap.pypa.io/get-pip.py | python3 -
 python3 -m pip install -r requirements.txt
@@ -356,7 +356,7 @@ Marzban поставляется с встроенным ботом Telegram, к
 Установка последней версии Marzban:
 
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install-script
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install-script
 ```
 
 Настройка сервиса резервного копирования:
@@ -385,8 +385,8 @@ marzban cli [OPTIONS] COMMAND [ARGS]...
 
 # Marzban Node
 
-Проект Marzban представляет [Marzban-node](https://github.com/gozargah/marzban-node), который помогает Вам в распределении инфраструктуры. С помощью Marzban-node можно распределить инфраструктуру по нескольким узлам, получив такие преимущества, как высокая доступность, масштабируемость и гибкость. Marzban-node позволяет пользователям подключаться к различным серверам, предоставляя им гибкость в выборе, а не ограничиваться только одним сервером.
-Более подробная информация и инструкции по установке приведены в [официальной документации Marzban-node](https://github.com/gozargah/marzban-node).
+Проект Marzban представляет [Marzban-node](https://github.com/blzr0/Marzban-node), который помогает Вам в распределении инфраструктуры. С помощью Marzban-node можно распределить инфраструктуру по нескольким узлам, получив такие преимущества, как высокая доступность, масштабируемость и гибкость. Marzban-node позволяет пользователям подключаться к различным серверам, предоставляя им гибкость в выборе, а не ограничиваться только одним сервером.
+Более подробная информация и инструкции по установке приведены в [официальной документации Marzban-node](https://github.com/blzr0/Marzban-node).
 
 
 # Webhook уведомления
@@ -436,14 +436,14 @@ Body:
 
 Мы ❤️‍🔥 участников проекта! Если вы хотите внести свой вклад, пожалуйста, ознакомьтесь с нашим [Contributing Guidelines](CONTRIBUTING.md) и не стесняйтесь отправлять запросы на исправление ошибок или сообщить о проблеме. Мы также приглашаем вас присоединиться к нашей группе [Telegram](https://t.me/gozargah_marzban) для получения поддержки.
 
-Проверьте [open issues](https://github.com/gozargah/marzban/issues), чтобы помочь развитию этого проекта.
+Проверьте [open issues](https://github.com/blzr0/Marzban/issues), чтобы помочь развитию этого проекта.
 
 <p align="center">
 Спасибо всем участникам, благодаря которым Marzban становится лучше:
 </p>
 <p align="center">
-<a href="https://github.com/Gozargah/Marzban/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Gozargah/Marzban" />
+<a href="https://github.com/blzr0/Marzban/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=blzr0/Marzban" />
 </a>
 </p>
 <p align="center">
