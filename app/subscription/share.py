@@ -17,15 +17,10 @@ if TYPE_CHECKING:
     from app.models.user import UserResponse
 
 from config import (
-    ACTIVE_STATUS_EMOJI,
     ACTIVE_STATUS_TEXT,
-    DISABLED_STATUS_EMOJI,
     DISABLED_STATUS_TEXT,
-    EXPIRED_STATUS_EMOJI,
     EXPIRED_STATUS_TEXT,
-    LIMITED_STATUS_EMOJI,
     LIMITED_STATUS_TEXT,
-    ONHOLD_STATUS_EMOJI,
     ONHOLD_STATUS_TEXT,
 )
 
@@ -33,11 +28,11 @@ SERVER_IP = get_public_ip()
 SERVER_IPV6 = get_public_ipv6()
 
 STATUS_EMOJIS = {
-    "active": ACTIVE_STATUS_EMOJI,
-    "expired": EXPIRED_STATUS_EMOJI,
-    "limited": LIMITED_STATUS_EMOJI,
-    "disabled": DISABLED_STATUS_EMOJI,
-    "on_hold": ONHOLD_STATUS_EMOJI,
+    "active": "✅",
+    "expired": "⌛️",
+    "limited": "🪫",
+    "disabled": "❌",
+    "on_hold": "🔌",
 }
 
 STATUS_TEXTS = {
