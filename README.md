@@ -15,23 +15,17 @@
 
 <br/>
 <p align="center">
-    <a href="#">
-        <img src="https://img.shields.io/github/actions/workflow/status/gozargah/marzban/build.yml?style=flat-square" />
+    <a href="https://github.com/blzr0/Marzban/actions/workflows/build.yml" target="_blank">
+        <img src="https://img.shields.io/github/actions/workflow/status/blzr0/marzban/build.yml?style=flat-square" />
     </a>
-    <a href="https://hub.docker.com/r/gozargah/marzban" target="_blank">
-        <img src="https://img.shields.io/docker/pulls/gozargah/marzban?style=flat-square&logo=docker" />
-    </a>
-    <a href="#">
-        <img src="https://img.shields.io/github/license/gozargah/marzban?style=flat-square" />
-    </a>
-    <a href="https://t.me/gozargah_marzban" target="_blank">
-        <img src="https://img.shields.io/badge/telegram-group-blue?style=flat-square&logo=telegram" />
+    <a href="https://github.com/blzr0/Marzban/pkgs/container/marzban" target="_blank">
+        <img src="https://img.shields.io/badge/ghcr.io-blzr0%2Fmarzban-blue?style=flat-square&logo=docker" />
     </a>
     <a href="#">
-        <img src="https://img.shields.io/badge/twitter-commiunity-blue?style=flat-square&logo=twitter" />
+        <img src="https://img.shields.io/github/license/blzr0/Marzban?style=flat-square" />
     </a>
     <a href="#">
-        <img src="https://img.shields.io/github/stars/gozargah/marzban?style=social" />
+        <img src="https://img.shields.io/github/stars/blzr0/Marzban?style=social" />
     </a>
 </p>
 
