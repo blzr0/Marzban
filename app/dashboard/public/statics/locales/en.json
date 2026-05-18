@@ -155,6 +155,7 @@
   "userDialog.method": "Method",
   "userDialog.months": "Months",
   "userDialog.note": "Note",
+  "userDialog.lastClient": "Last client",
   "userDialog.onHold": "On Hold",
   "userDialog.onHoldExpireDuration": "Expire Duration",
   "userDialog.optional": "optional",

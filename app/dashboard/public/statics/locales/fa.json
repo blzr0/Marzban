@@ -161,6 +161,7 @@
   "userDialog.method": "روش",
   "userDialog.months": "ماه‌ها",
   "userDialog.note": "توضیحات",
+  "userDialog.lastClient": "آخرین کلاینت",
   "userDialog.onHold": "در انتظار",
   "userDialog.onHoldExpireDuration": "مدت انقضا",
   "userDialog.optional": "اختیاری",

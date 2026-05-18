@@ -703,6 +703,25 @@ export const UserDialog: FC<UserDialogProps> = () => {
                           {form.formState.errors?.note?.message}
                         </FormErrorMessage>
                       </FormControl>
+
+                      {isEditing && editingUser?.sub_last_user_agent && (
+                        <FormControl mb={"10px"}>
+                          <FormLabel>{t("userDialog.lastClient")}</FormLabel>
+                          <Text
+                            fontSize="sm"
+                            color="gray.600"
+                            _dark={{ color: "gray.400" }}
+                            p={2}
+                            borderWidth="1px"
+                            borderRadius="6px"
+                            borderColor="inherit"
+                            wordBreak="break-all"
+                          >
+                            {editingUser.sub_last_user_agent}
+                          </Text>
+                        </FormControl>
+                      )}
+
                     </Flex>
                     {error && (
                       <Alert

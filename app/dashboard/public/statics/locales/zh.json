@@ -155,6 +155,7 @@
   "userDialog.method": "加密方式",
   "userDialog.months": "月",
   "userDialog.note": "备注",
+  "userDialog.lastClient": "最后使用客户端",
   "userDialog.onHold": "保持",
   "userDialog.onHoldExpireDuration": "过期时间",
   "userDialog.optional": "可以为空",
