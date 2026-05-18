@@ -12,6 +12,7 @@ from app.templates import render_template
 from config import (
     SUB_ANNOUNCE,
     SUB_PROFILE_TITLE,
+    SUB_PROFILE_TITLE_EMOJI,
     SUB_SUPPORT_URL,
     SUB_UPDATE_INTERVAL,
     SUBSCRIPTION_PAGE_TEMPLATE,
@@ -71,7 +72,7 @@ def user_subscription(
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} 🪨 {user.username}"),
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
         "profile-update-interval": SUB_UPDATE_INTERVAL,
         "subscription-userinfo": "; ".join(
             f"{key}={val}"
@@ -179,7 +180,7 @@ def user_subscription_with_client_type(
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} 🪨 {user.username}"),
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
         "profile-update-interval": SUB_UPDATE_INTERVAL,
         "subscription-userinfo": "; ".join(
             f"{key}={val}"
