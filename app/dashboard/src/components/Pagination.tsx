@@ -126,9 +126,8 @@ export const Pagination: FC = () => {
             <option>10</option>
             <option>20</option>
             <option>30</option>
-            <option>40</option>
-            <option>50</option>
             <option>100</option>
+            <option>250</option>
           </Select>
           <Text whiteSpace={"nowrap"} fontSize="sm">
             {t("itemsPerPage")}
