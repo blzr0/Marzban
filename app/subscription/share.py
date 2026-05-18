@@ -168,6 +168,8 @@ def setup_format_variables(extra_data: dict) -> dict:
             seconds_left = expire_timestamp - int(dt.utcnow().timestamp())
             expire_datetime = dt.fromtimestamp(expire_timestamp)
             expire_date = expire_datetime.date()
+            expire_date_str = expire_datetime.strftime("%d.%m.%Y")
+            expire_time_str = expire_datetime.strftime("%H:%M:%S")
             jalali_expire_date = jd.fromgregorian(
                 year=expire_date.year, month=expire_date.month, day=expire_date.day
             ).strftime("%Y-%m-%d")
@@ -182,6 +184,8 @@ def setup_format_variables(extra_data: dict) -> dict:
             days_left = "∞"
             time_left = "∞"
             expire_date = "∞"
+            expire_date_str = "∞"
+            expire_time_str = "∞"
             jalali_expire_date = "∞"
     else:
         if on_hold_expire_duration is not None and on_hold_expire_duration >= 0:
@@ -193,6 +197,8 @@ def setup_format_variables(extra_data: dict) -> dict:
             days_left = "∞"
             time_left = "∞"
             expire_date = "∞"
+            expire_date_str = "∞"
+            expire_time_str = "∞"
             jalali_expire_date = "∞"
 
     if extra_data.get("data_limit"):
@@ -219,6 +225,8 @@ def setup_format_variables(extra_data: dict) -> dict:
             "DATA_LEFT": data_left,
             "DAYS_LEFT": days_left,
             "EXPIRE_DATE": expire_date,
+            "EXPIRE_DATE_STR": expire_date_str,
+            "EXPIRE_TIME_STR": expire_time_str,
             "JALALI_EXPIRE_DATE": jalali_expire_date,
             "TIME_LEFT": time_left,
             "STATUS_EMOJI": status_emoji,
