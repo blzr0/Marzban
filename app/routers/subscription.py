@@ -10,6 +10,7 @@ from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_subscription
 from app.templates import render_template
 from config import (
+    SUB_ANNOUNCE,
     SUB_PROFILE_TITLE,
     SUB_SUPPORT_URL,
     SUB_UPDATE_INTERVAL,
@@ -70,12 +71,13 @@ def user_subscription(
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(SUB_PROFILE_TITLE),
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} 🪨 {user.username}"),
         "profile-update-interval": SUB_UPDATE_INTERVAL,
         "subscription-userinfo": "; ".join(
             f"{key}={val}"
             for key, val in get_subscription_user_info(user).items()
-        )
+        ),
+        **({"announce": encode_title(SUB_ANNOUNCE)} if SUB_ANNOUNCE else {}),
     }
 
     if re.match(r'^([Cc]lash-verge|[Cc]lash[-\.]?[Mm]eta|[Ff][Ll][Cc]lash|[Mm]ihomo)', user_agent):
@@ -177,12 +179,13 @@ def user_subscription_with_client_type(
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(SUB_PROFILE_TITLE),
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} 🪨 {user.username}"),
         "profile-update-interval": SUB_UPDATE_INTERVAL,
         "subscription-userinfo": "; ".join(
             f"{key}={val}"
             for key, val in get_subscription_user_info(user).items()
-        )
+        ),
+        **({"announce": encode_title(SUB_ANNOUNCE)} if SUB_ANNOUNCE else {}),
     }
 
     config = client_config.get(client_type)
