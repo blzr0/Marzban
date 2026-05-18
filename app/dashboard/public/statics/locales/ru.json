@@ -46,6 +46,8 @@
   "hostsDialog.dataUsage": "Использованный трафик пользователя",
   "hostsDialog.desc": "Используйте эти переменные, чтобы сделать его динамическим",
   "hostsDialog.expireDate": "Дата истечения срока пользователя",
+  "hostsDialog.expireDateStr": "Дата истечения в формате ДД.ММ.ГГГГ",
+  "hostsDialog.expireTimeStr": "Время истечения в формате ЧЧ:ММ:СС",
   "hostsDialog.fingerprint": "Fingerprint",
   "hostsDialog.fragment": "Шаблон фрагмента",
   "hostsDialog.fragment.info": "length,interval,packet (e.g. 10-100,100-200,tlshello)",

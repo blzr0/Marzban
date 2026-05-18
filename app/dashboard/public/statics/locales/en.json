@@ -46,6 +46,8 @@
   "hostsDialog.dataUsage": "The current usage of the user",
   "hostsDialog.desc": "Use these variables to make it dynamic",
   "hostsDialog.expireDate": "Expiry date of the user",
+  "hostsDialog.expireDateStr": "Expiry date in DD.MM.YYYY format",
+  "hostsDialog.expireTimeStr": "Expiry time in HH:MM:SS format",
   "hostsDialog.fingerprint": "Fingerprint",
   "hostsDialog.fragment": "Fragment pattern",
   "hostsDialog.fragment.info": "Correct pattern: length,interval,packets",

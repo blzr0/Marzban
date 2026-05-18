@@ -46,6 +46,8 @@
   "hostsDialog.dataUsage": "用户当前流量情况",
   "hostsDialog.desc": "使用这些变量使其可以动态替换",
   "hostsDialog.expireDate": "用户的有效期",
+  "hostsDialog.expireDateStr": "到期日期，格式为 DD.MM.YYYY",
+  "hostsDialog.expireTimeStr": "到期时间，格式为 HH:MM:SS",
   "hostsDialog.fingerprint": "指纹",
   "hostsDialog.fragment": "碎片图案",
   "hostsDialog.fragment.info": "length,interval,packet (e.g. 10-100,100-200,tlshello)",

@@ -369,6 +369,18 @@ const AccordionInbound: FC<AccordionInboundType> = ({
                                     </Text>
                                     <Text mt={1}>
                                       <Badge>
+                                        {"{"}EXPIRE_DATE_STR{"}"}
+                                      </Badge>{" "}
+                                      {t("hostsDialog.expireDateStr")}
+                                    </Text>
+                                    <Text mt={1}>
+                                      <Badge>
+                                        {"{"}EXPIRE_TIME_STR{"}"}
+                                      </Badge>{" "}
+                                      {t("hostsDialog.expireTimeStr")}
+                                    </Text>
+                                    <Text mt={1}>
+                                      <Badge>
                                         {"{"}JALALI_EXPIRE_DATE{"}"}
                                       </Badge>{" "}
                                       {t("hostsDialog.jalaliExpireDate")}

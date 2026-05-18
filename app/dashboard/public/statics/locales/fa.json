@@ -51,6 +51,8 @@
   "hostsDialog.dataUsage": "مصرف کنونی کاربر",
   "hostsDialog.desc": "برای ساخت نوشته پویا، از این متغیرها استفاده کنید",
   "hostsDialog.expireDate": "تاریخ انقضای کاربر به میلادی",
+  "hostsDialog.expireDateStr": "تاریخ انقضا به فرمت DD.MM.YYYY",
+  "hostsDialog.expireTimeStr": "زمان انقضا به فرمت HH:MM:SS",
   "hostsDialog.fingerprint": "اثرانگشت",
   "hostsDialog.fragment": "الگو فرگمنت",
   "hostsDialog.fragment.info": "length,interval,packet (e.g. 10-100,100-200,tlshello)",
