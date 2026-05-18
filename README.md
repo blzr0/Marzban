@@ -111,18 +111,18 @@ Marzban is user-friendly, feature-rich and reliable. It lets you to create diffe
 Run the following command to install Marzban with SQLite database:
 
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install
 ```
 
 Run the following command to install Marzban with MySQL database:
 
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install --database mysql
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install --database mysql
 ```
 
 Run the following command to install Marzban with MariaDB database:
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install --database mariadb
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install --database mariadb
 ```
 
 Once the installation is complete:
@@ -173,7 +173,7 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 Clone this project and install the dependencies (you need Python >= 3.8)
 
 ```bash
-git clone https://github.com/Gozargah/Marzban.git
+git clone https://github.com/blzr0/Marzban.git
 cd Marzban
 wget -qO- https://bootstrap.pypa.io/get-pip.py | python3 -
 python3 -m pip install -r requirements.txt
@@ -348,7 +348,7 @@ Marzban's backup service efficiently zips all necessary files and sends them to 
 
 Install the Latest Version of Marzban Command:
 ```bash
-sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh)" @ install-script
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ install-script
 ```
 
 Setup the Backup Service:
@@ -442,8 +442,8 @@ Check [open issues](https://github.com/gozargah/marzban/issues) to help the prog
 Thanks to the all contributors who have helped improve Marzban:
 </p>
 <p align="center">
-<a href="https://github.com/Gozargah/Marzban/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Gozargah/Marzban" />
+<a href="https://github.com/blzr0/Marzban/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=blzr0/Marzban" />
 </a>
 </p>
 <p align="center">
