@@ -50,6 +50,7 @@ export type User = {
   inbounds: UserInbounds;
   note: string;
   online_at: string;
+  sub_last_user_agent: string | null;
 };
 
 export type UserCreate = Pick<
