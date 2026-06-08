@@ -138,6 +138,17 @@ SUB_PROFILE_TITLE = config("SUB_PROFILE_TITLE", default="Subscription")
 SUB_PROFILE_TITLE_EMOJI = config("SUB_PROFILE_TITLE_EMOJI", default="🪨")
 SUB_ANNOUNCE = config("SUB_ANNOUNCE", default="")
 
+# special subscription for expired/limited users
+EXPIRED_SUB_ENABLED = config("EXPIRED_SUB_ENABLED", cast=bool, default=False)
+EXPIRED_SUB_LINK = config("EXPIRED_SUB_LINK", default="")
+EXPIRED_SUB_TITLES = config(
+    "EXPIRED_SUB_TITLES",
+    default="⚠️ Подписка истекла|💳 Оплати в боте|📱 Работает только Telegram|🔄 После оплаты - обнови",
+)
+EXPIRED_SUB_SUPPORT_URL = config("EXPIRED_SUB_SUPPORT_URL", default="")
+EXPIRED_SUB_UPDATE_INTERVAL = config("EXPIRED_SUB_UPDATE_INTERVAL", default="1")
+EXPIRED_SUB_ANNOUNCE = config("EXPIRED_SUB_ANNOUNCE", default="")
+
 # discord webhook log
 DISCORD_WEBHOOK_URL = config("DISCORD_WEBHOOK_URL", default="")
 

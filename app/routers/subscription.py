@@ -1,4 +1,6 @@
+import base64
 import re
+import urllib.parse
 from distutils.version import LooseVersion
 
 from fastapi import APIRouter, Depends, Header, Path, Request, Response
@@ -10,6 +12,12 @@ from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_subscription
 from app.templates import render_template
 from config import (
+    EXPIRED_SUB_ANNOUNCE,
+    EXPIRED_SUB_ENABLED,
+    EXPIRED_SUB_LINK,
+    EXPIRED_SUB_SUPPORT_URL,
+    EXPIRED_SUB_TITLES,
+    EXPIRED_SUB_UPDATE_INTERVAL,
     SUB_ANNOUNCE,
     SUB_PROFILE_TITLE,
     SUB_PROFILE_TITLE_EMOJI,
@@ -47,6 +55,33 @@ def get_subscription_user_info(user: UserResponse) -> dict:
     }
 
 
+def build_expired_subscription_response(user: "UserResponse", request: Request) -> Response:
+    titles = [t.strip() for t in EXPIRED_SUB_TITLES.split("|") if t.strip()]
+    stub_links = "\n".join(
+        f"{EXPIRED_SUB_LINK}#{urllib.parse.quote(title)}"
+        for title in titles
+    )
+    raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False)
+    combined = stub_links + "\n" + raw_conf.lstrip()
+    encoded = base64.b64encode(combined.encode()).decode()
+
+    support_url = EXPIRED_SUB_SUPPORT_URL or SUB_SUPPORT_URL
+    announce_text = EXPIRED_SUB_ANNOUNCE.replace("\\n", "\n") if EXPIRED_SUB_ANNOUNCE else None
+
+    headers = {
+        "content-disposition": f'attachment; filename="{user.username}"',
+        "profile-web-page-url": str(request.url),
+        "support-url": support_url,
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
+        "profile-update-interval": EXPIRED_SUB_UPDATE_INTERVAL,
+        "subscription-userinfo": "; ".join(
+            f"{k}={v}" for k, v in get_subscription_user_info(user).items()
+        ),
+        **({"announce": encode_title(announce_text)} if announce_text else {}),
+    }
+    return Response(content=encoded, media_type="text/plain", headers=headers)
+
+
 @router.get("/{token}/")
 @router.get("/{token}", include_in_schema=False)
 def user_subscription(
@@ -68,6 +103,10 @@ def user_subscription(
         )
 
     crud.update_user_sub(db, dbuser, user_agent)
+
+    if EXPIRED_SUB_ENABLED and EXPIRED_SUB_LINK and user.status in ("expired", "limited"):
+        return build_expired_subscription_response(user, request)
+
     response_headers = {
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
