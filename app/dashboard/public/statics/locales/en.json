@@ -195,6 +195,7 @@
   "usersTable.noUserMatched": "It seems there is no user matched with what you are looking for",
   "usersTable.status": "status",
   "usersTable.total": "Total",
+  "usersTable.avgSpeedPrefix": "avg.",
   "usersTable.prevHour": "Prev hour",
   "usersTable.currHour": "Curr hour",
   "usersTable.today": "Today"

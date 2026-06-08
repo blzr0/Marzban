@@ -195,6 +195,7 @@
   "usersTable.noUserMatched": "Похоже, нет пользователя, соответствующего вашему запросу",
   "usersTable.status": "Статус",
   "usersTable.total": "Всего",
+  "usersTable.avgSpeedPrefix": "ср.",
   "usersTable.prevHour": "Прошлый час",
   "usersTable.currHour": "Текущий час",
   "usersTable.today": "Сутки"

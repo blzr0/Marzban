@@ -488,7 +488,7 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
                                         </Text>
                                         <Text fontSize="sm">{formatBytes(stat[key])}</Text>
                                         <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }}>
-                                          ср. {formatSpeed(stat[speed])}
+                                          {t("usersTable.avgSpeedPrefix")} {formatSpeed(stat[speed])}
                                         </Text>
                                       </VStack>
                                     ))}
@@ -718,7 +718,7 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
                           <VStack spacing={0} align="start">
                             <Text fontSize="sm">{formatBytes(bytes!)}</Text>
                             <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }}>
-                              ср. {formatSpeed(speed!)}
+                              {t("usersTable.avgSpeedPrefix")} {formatSpeed(speed!)}
                             </Text>
                           </VStack>
                         ) : (

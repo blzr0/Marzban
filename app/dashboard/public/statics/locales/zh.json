@@ -196,6 +196,7 @@
   "usersTable.status": "状态",
   "usersTable.sortByExpire": "按过期时间排序",
   "usersTable.total": "总共",
+  "usersTable.avgSpeedPrefix": "均",
   "usersTable.prevHour": "上一小时",
   "usersTable.currHour": "当前小时",
   "usersTable.today": "今日"
