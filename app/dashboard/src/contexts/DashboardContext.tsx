@@ -1,6 +1,6 @@
 import { StatisticsQueryKey } from "components/Statistics";
 import { fetch } from "service/http";
-import { User, UserCreate } from "types/User";
+import { User, UserCreate, UserUsageStat } from "types/User";
 import { queryClient } from "utils/react-query";
 import { getUsersPerPageLimitSize } from "utils/userPreferenceStorage";
 import { create } from "zustand";
@@ -38,6 +38,7 @@ type DashboardStateType = {
     users: User[];
     total: number;
   };
+  usageStats: Map<string, UserUsageStat>;
   inbounds: Inbounds;
   loading: boolean;
   filters: FilterType;
@@ -68,6 +69,17 @@ type DashboardStateType = {
   onShowingNodesUsage: (isShowingNodesUsage: boolean) => void;
   resetDataUsage: (user: User) => Promise<void>;
   revokeSubscription: (user: User) => Promise<void>;
+};
+
+const fetchUsageStats = (): void => {
+  fetch<{ stats: UserUsageStat[] }>("/users/usage-stats")
+    .then((data) => {
+      const map = new Map<string, UserUsageStat>(
+        data.stats.map((s) => [s.username, s])
+      );
+      useDashboard.setState({ usageStats: map });
+    })
+    .catch(() => {});
 };
 
 const fetchUsers = (query: FilterType): Promise<User[]> => {
@@ -109,6 +121,7 @@ export const useDashboard = create(
       users: [],
       total: 0,
     },
+    usageStats: new Map(),
     loading: true,
     isResetingAllUsage: false,
     isEditingHosts: false,
@@ -125,6 +138,7 @@ export const useDashboard = create(
     isEditingCore: false,
     refetchUsers: () => {
       fetchUsers(get().filters);
+      fetchUsageStats();
     },
     resetAllUsage: () => {
       return fetch(`/users/reset`, { method: "POST" }).then(() => {

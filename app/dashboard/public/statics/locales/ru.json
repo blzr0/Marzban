@@ -194,5 +194,8 @@
   "usersTable.noUser": "В системе нет созданных пользователей",
   "usersTable.noUserMatched": "Похоже, нет пользователя, соответствующего вашему запросу",
   "usersTable.status": "Статус",
-  "usersTable.total": "Всего"
+  "usersTable.total": "Всего",
+  "usersTable.prevHour": "Прошлый час",
+  "usersTable.currHour": "Текущий час",
+  "usersTable.today": "Сутки"
 }

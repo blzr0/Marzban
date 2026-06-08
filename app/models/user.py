@@ -364,3 +364,18 @@ class UserUsagesResponse(BaseModel):
 
 class UsersUsagesResponse(BaseModel):
     usages: List[UserUsageResponse]
+
+
+class UserUsageStat(BaseModel):
+    user_id: int
+    username: str
+    bytes_prev_hour: int
+    bytes_curr_hour: int
+    bytes_today: int
+    speed_prev_hour: float
+    speed_curr_hour: float
+    speed_today: float
+
+
+class UsersUsageStatsResponse(BaseModel):
+    stats: List[UserUsageStat]

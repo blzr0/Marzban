@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from sqlalchemy import and_, delete, func, or_
+from sqlalchemy import and_, case, delete, func, or_
 from sqlalchemy.orm import Query, Session, joinedload
 from sqlalchemy.sql.functions import coalesce
 
@@ -1498,3 +1498,36 @@ def count_online_users(db: Session, hours: int = 24):
     query = db.query(func.count(User.id)).filter(User.online_at.isnot(
         None), User.online_at >= twenty_four_hours_ago)
     return query.scalar()
+
+
+def get_users_usage_stats(db: Session, admins: Optional[List[str]] = None):
+    now = datetime.utcnow()
+    prev_hour = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+    curr_hour = now.replace(minute=0, second=0, microsecond=0)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seconds_into_hour = max(int((now - curr_hour).total_seconds()), 1)
+
+    query = db.query(
+        User.id,
+        User.username,
+        func.sum(case(
+            (NodeUserUsage.created_at == prev_hour, NodeUserUsage.used_traffic),
+            else_=0
+        )).label('bytes_prev_hour'),
+        func.sum(case(
+            (NodeUserUsage.created_at == curr_hour, NodeUserUsage.used_traffic),
+            else_=0
+        )).label('bytes_curr_hour'),
+        func.sum(case(
+            (NodeUserUsage.created_at >= today_start, NodeUserUsage.used_traffic),
+            else_=0
+        )).label('bytes_today'),
+    ).join(NodeUserUsage, NodeUserUsage.user_id == User.id
+    ).filter(NodeUserUsage.created_at >= today_start - timedelta(hours=1))
+
+    if admins:
+        query = query.filter(User.admin.has(Admin.username.in_(admins)))
+
+    query = query.group_by(User.id, User.username)
+
+    return query.all(), seconds_into_hour

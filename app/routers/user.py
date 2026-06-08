@@ -16,6 +16,8 @@ from app.models.user import (
     UserStatus,
     UsersUsagesResponse,
     UserUsagesResponse,
+    UserUsageStat,
+    UsersUsageStatsResponse,
 )
 from app.utils import report, responses
 
@@ -331,6 +333,34 @@ def set_owner(
     logger.info(f'{user.username}"owner successfully set to{admin.username}')
 
     return user
+
+
+@router.get("/users/usage-stats", response_model=UsersUsageStatsResponse)
+def get_users_usage_stats(
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(Admin.get_current),
+):
+    """Get per-user traffic stats for prev hour, current hour, and today"""
+    rows, seconds_into_hour = crud.get_users_usage_stats(
+        db=db,
+        admins=None if admin.is_sudo else [admin.username],
+    )
+    stats = []
+    for row in rows:
+        bph = row.bytes_prev_hour or 0
+        bch = row.bytes_curr_hour or 0
+        btd = row.bytes_today or 0
+        stats.append(UserUsageStat(
+            user_id=row.id,
+            username=row.username,
+            bytes_prev_hour=bph,
+            bytes_curr_hour=bch,
+            bytes_today=btd,
+            speed_prev_hour=bph * 8 / 3600 / 1_000_000,
+            speed_curr_hour=bch * 8 / seconds_into_hour / 1_000_000,
+            speed_today=btd * 8 / 86400 / 1_000_000,
+        ))
+    return {"stats": stats}
 
 
 @router.get("/users/expired", response_model=List[str])

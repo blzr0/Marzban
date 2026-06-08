@@ -42,7 +42,7 @@ import { t } from "i18next";
 import { FC, Fragment, useEffect, useState } from "react";
 import CopyToClipboard from "react-copy-to-clipboard";
 import { useTranslation } from "react-i18next";
-import { User } from "types/User";
+import { User, UserUsageStat } from "types/User";
 import { formatBytes } from "utils/formatByte";
 import { OnlineBadge } from "./OnlineBadge";
 import { OnlineStatus } from "./OnlineStatus";
@@ -50,6 +50,11 @@ import { Pagination } from "./Pagination";
 import { StatusBadge } from "./StatusBadge";
 
 const EmptySectionIcon = chakra(AddFileIcon);
+
+const formatSpeed = (mbitps: number): string => {
+  if (mbitps < 0.001) return "0 Mbit/s";
+  return `${mbitps.toFixed(2)} Mbit/s`;
+};
 
 const iconProps = {
   baseStyle: {
@@ -191,6 +196,7 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
     filters,
     users: { users },
     users: totalUsers,
+    usageStats,
     onEditingUser,
     onFilterChange,
   } = useDashboard();
@@ -436,6 +442,31 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
                                   />
                                 </Box>
                               </VStack>
+                              {(() => {
+                                const stat = usageStats.get(user.username);
+                                if (!stat) return null;
+                                return (
+                                  <HStack w="full" justifyContent="space-between" spacing={3} align="start">
+                                    {(
+                                      [
+                                        { key: "bytes_prev_hour" as const, speed: "speed_prev_hour" as const, label: t("usersTable.prevHour") },
+                                        { key: "bytes_curr_hour" as const, speed: "speed_curr_hour" as const, label: t("usersTable.currHour") },
+                                        { key: "bytes_today" as const, speed: "speed_today" as const, label: t("usersTable.today") },
+                                      ]
+                                    ).map(({ key, speed, label }) => (
+                                      <VStack key={key} align="start" spacing={0} flex={1}>
+                                        <Text fontSize="xs" fontWeight="bold" color="gray.600" _dark={{ color: "gray.400" }}>
+                                          {label}
+                                        </Text>
+                                        <Text fontSize="sm">{formatBytes(stat[key])}</Text>
+                                        <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }}>
+                                          ср. {formatSpeed(stat[speed])}
+                                        </Text>
+                                      </VStack>
+                                    ))}
+                                  </HStack>
+                                );
+                              })()}
                               <HStack w="full" justifyContent="space-between">
                                 <Box width="full">
                                   <StatusBadge
@@ -574,6 +605,27 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
             <Th
               position="sticky"
               top={{ base: "unset", md: top }}
+              minW="110px"
+            >
+              {t("usersTable.prevHour")}
+            </Th>
+            <Th
+              position="sticky"
+              top={{ base: "unset", md: top }}
+              minW="110px"
+            >
+              {t("usersTable.currHour")}
+            </Th>
+            <Th
+              position="sticky"
+              top={{ base: "unset", md: top }}
+              minW="110px"
+            >
+              {t("usersTable.today")}
+            </Th>
+            <Th
+              position="sticky"
+              top={{ base: "unset", md: top }}
               width="200px"
               minW="180px"
             />
@@ -612,6 +664,26 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
                       colorScheme={statusColors[user.status].bandWidthColor}
                     />
                   </Td>
+                  {(["bytes_prev_hour", "bytes_curr_hour", "bytes_today"] as const).map((key, idx) => {
+                    const speedKeys = ["speed_prev_hour", "speed_curr_hour", "speed_today"] as const;
+                    const stat = usageStats.get(user.username);
+                    const bytes = stat ? stat[key] : null;
+                    const speed = stat ? stat[speedKeys[idx]] : null;
+                    return (
+                      <Td key={key} minW="110px">
+                        {stat ? (
+                          <VStack spacing={0} align="start">
+                            <Text fontSize="sm">{formatBytes(bytes!)}</Text>
+                            <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }}>
+                              ср. {formatSpeed(speed!)}
+                            </Text>
+                          </VStack>
+                        ) : (
+                          <Text color="gray.400">—</Text>
+                        )}
+                      </Td>
+                    );
+                  })}
                   <Td width="200px" minW="180px">
                     <ActionButtons user={user} />
                   </Td>
@@ -620,7 +692,7 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
             })}
           {users.length == 0 && (
             <Tr>
-              <Td colSpan={4}>
+              <Td colSpan={7}>
                 <EmptySection isFiltered={isFiltered} />
               </Td>
             </Tr>

@@ -73,6 +73,17 @@ export type UserApi = {
   username: string;
 }
 
+export type UserUsageStat = {
+  user_id: number;
+  username: string;
+  bytes_prev_hour: number;
+  bytes_curr_hour: number;
+  bytes_today: number;
+  speed_prev_hour: number;
+  speed_curr_hour: number;
+  speed_today: number;
+};
+
 export type UseGetUserReturn = {
   userData: UserApi;
   getUserIsPending: boolean;
