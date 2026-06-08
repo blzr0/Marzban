@@ -200,5 +200,8 @@
   "usersTable.noUser": "کاربری افزوده نشده است",
   "usersTable.noUserMatched": "به‌نظر میرسه کاربری که جستجو کردید، وجود ندارد",
   "usersTable.status": "وضعیت",
-  "usersTable.total": "مجموع"
+  "usersTable.total": "مجموع",
+  "usersTable.prevHour": "ساعت گذشته",
+  "usersTable.currHour": "ساعت جاری",
+  "usersTable.today": "امروز"
 }

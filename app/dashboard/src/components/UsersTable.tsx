@@ -39,7 +39,7 @@ import classNames from "classnames";
 import { resetStrategy, statusColors } from "constants/UserSettings";
 import { useDashboard } from "contexts/DashboardContext";
 import { t } from "i18next";
-import { FC, Fragment, useEffect, useState } from "react";
+import { FC, Fragment, useEffect, useMemo, useState } from "react";
 import CopyToClipboard from "react-copy-to-clipboard";
 import { useTranslation } from "react-i18next";
 import { User, UserUsageStat } from "types/User";
@@ -221,6 +221,7 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
   const isFiltered = users.length !== totalUsers.total;
 
   const handleSort = (column: string) => {
+    setStatsSort("");
     let newSort = filters.sort;
     if (newSort.includes(column)) {
       if (newSort.startsWith("-")) {
@@ -240,6 +241,33 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
       status: e.target.value.length > 0 ? e.target.value : undefined,
     });
   };
+
+  const [statsSort, setStatsSort] = useState<string>("");
+
+  const handleStatsSort = (column: string) => {
+    if (statsSort.replace("-", "") === column) {
+      if (statsSort.startsWith("-")) {
+        setStatsSort(column);
+      } else {
+        setStatsSort("");
+      }
+    } else {
+      setStatsSort("-" + column);
+    }
+  };
+
+  const sortedUsers = useMemo(() => {
+    if (!statsSort) return users;
+    const desc = statsSort.startsWith("-");
+    const key = statsSort.replace("-", "") as keyof UserUsageStat;
+    return [...users].sort((a, b) => {
+      const statA = usageStats.get(a.username);
+      const statB = usageStats.get(b.username);
+      const valA = statA ? (statA[key] as number) : (desc ? -1 : Infinity);
+      const valB = statB ? (statB[key] as number) : (desc ? -1 : Infinity);
+      return desc ? valB - valA : valA - valB;
+    });
+  }, [users, usageStats, statsSort]);
 
   const toggleAccordion = (index: number) => {
     setSelectedRow(index === selectedRow ? undefined : index);
@@ -606,22 +634,37 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
               position="sticky"
               top={{ base: "unset", md: top }}
               minW="110px"
+              cursor="pointer"
+              onClick={() => handleStatsSort("bytes_prev_hour")}
             >
-              {t("usersTable.prevHour")}
+              <HStack>
+                <span>{t("usersTable.prevHour")}</span>
+                <Sort sort={statsSort} column="bytes_prev_hour" />
+              </HStack>
             </Th>
             <Th
               position="sticky"
               top={{ base: "unset", md: top }}
               minW="110px"
+              cursor="pointer"
+              onClick={() => handleStatsSort("bytes_curr_hour")}
             >
-              {t("usersTable.currHour")}
+              <HStack>
+                <span>{t("usersTable.currHour")}</span>
+                <Sort sort={statsSort} column="bytes_curr_hour" />
+              </HStack>
             </Th>
             <Th
               position="sticky"
               top={{ base: "unset", md: top }}
               minW="110px"
+              cursor="pointer"
+              onClick={() => handleStatsSort("bytes_today")}
             >
-              {t("usersTable.today")}
+              <HStack>
+                <span>{t("usersTable.today")}</span>
+                <Sort sort={statsSort} column="bytes_today" />
+              </HStack>
             </Th>
             <Th
               position="sticky"
@@ -633,12 +676,12 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
         </Thead>
         <Tbody>
           {useTable &&
-            users?.map((user, i) => {
+            sortedUsers?.map((user, i) => {
               return (
                 <Tr
                   key={user.username}
                   className={classNames("interactive", {
-                    "last-row": i === users.length - 1,
+                    "last-row": i === sortedUsers.length - 1,
                   })}
                   onClick={() => onEditingUser(user)}
                 >
