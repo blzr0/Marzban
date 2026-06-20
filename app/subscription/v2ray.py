@@ -81,6 +81,7 @@ class V2rayShareLink(str):
                 heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
                 keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
                 xmux=inbound.get("xmux", {}),
+                downloadSettings=inbound.get("downloadSettings"),
             )
 
         elif inbound["protocol"] == "vless":
@@ -113,6 +114,7 @@ class V2rayShareLink(str):
                 heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
                 keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
                 xmux=inbound.get("xmux", {}),
+                downloadSettings=inbound.get("downloadSettings"),
             )
 
         elif inbound["protocol"] == "trojan":
@@ -145,6 +147,7 @@ class V2rayShareLink(str):
                 heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
                 keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
                 xmux=inbound.get("xmux", {}),
+                downloadSettings=inbound.get("downloadSettings"),
             )
 
         elif inbound["protocol"] == "shadowsocks":
@@ -190,6 +193,7 @@ class V2rayShareLink(str):
             heartbeatPeriod: int = 0,
             keepAlivePeriod: int = 0,
             xmux: dict = {},
+            downloadSettings: dict = None,
     ):
         payload = {
             "add": address,
@@ -241,11 +245,14 @@ class V2rayShareLink(str):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader": noGRPCHeader,
             }
-            if xmux:
-                extra["xmux"] = xmux
-            payload["type"] = mode
+            xmux_out = dict(xmux) if xmux else {}
             if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
+                xmux_out.setdefault("hKeepAlivePeriod", keepAlivePeriod)
+            if xmux_out:
+                extra["xmux"] = xmux_out
+            if downloadSettings:
+                extra["downloadSettings"] = downloadSettings
+            payload["type"] = mode
             payload["extra"] = extra
 
         elif net == "ws":
@@ -289,6 +296,7 @@ class V2rayShareLink(str):
               heartbeatPeriod: int = 0,
               keepAlivePeriod: int = 0,
               xmux: dict = {},
+              downloadSettings: dict = None,
               ):
 
         payload = {
@@ -322,10 +330,13 @@ class V2rayShareLink(str):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader": noGRPCHeader,
             }
+            xmux_out = dict(xmux) if xmux else {}
             if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
-            if xmux:
-                extra["xmux"] = xmux
+                xmux_out.setdefault("hKeepAlivePeriod", keepAlivePeriod)
+            if xmux_out:
+                extra["xmux"] = xmux_out
+            if downloadSettings:
+                extra["downloadSettings"] = downloadSettings
             payload["extra"] = json.dumps(extra, separators=(',', ':'))
 
         elif net == 'kcp':
@@ -397,6 +408,7 @@ class V2rayShareLink(str):
                heartbeatPeriod: int = 0,
                keepAlivePeriod: int = 0,
                xmux: dict = {},
+               downloadSettings: dict = None,
                ):
 
         payload = {
@@ -426,10 +438,13 @@ class V2rayShareLink(str):
                 "xPaddingBytes": x_padding_bytes,
                 "noGRPCHeader": noGRPCHeader,
             }
+            xmux_out = dict(xmux) if xmux else {}
             if keepAlivePeriod > 0:
-                extra["keepAlivePeriod"] = keepAlivePeriod
-            if xmux:
-                extra["xmux"] = xmux
+                xmux_out.setdefault("hKeepAlivePeriod", keepAlivePeriod)
+            if xmux_out:
+                extra["xmux"] = xmux_out
+            if downloadSettings:
+                extra["downloadSettings"] = downloadSettings
             payload["extra"] = json.dumps(extra, separators=(',', ':'))
 
         elif net == 'quic':
@@ -602,6 +617,7 @@ class V2rayJsonConfig(str):
                          mode: str = "auto",
                          noGRPCHeader: bool = False,
                          keepAlivePeriod: int = 0,
+                         downloadSettings: dict = None,
                          ) -> dict:
         config = copy.deepcopy(self.settings.get("splithttpSettings", {}))
 
@@ -613,16 +629,19 @@ class V2rayJsonConfig(str):
         if random_user_agent:
             config["headers"]["User-Agent"] = choice(
                 self.user_agent_list)
-        config.setdefault("scMaxEachPostBytes", sc_max_each_post_bytes)
-        config.setdefault("scMaxConcurrentPosts", sc_max_concurrent_posts)
-        config.setdefault("scMinPostsIntervalMs", sc_min_posts_interval_ms)
-        config.setdefault("xPaddingBytes", x_padding_bytes)
-        config["noGRPCHeader"] = noGRPCHeader
-        if xmux:
-            config["xmux"] = xmux
+        extra = config.setdefault("extra", {})
+        extra.setdefault("scMaxEachPostBytes", sc_max_each_post_bytes)
+        extra.setdefault("scMaxConcurrentPosts", sc_max_concurrent_posts)
+        extra.setdefault("scMinPostsIntervalMs", sc_min_posts_interval_ms)
+        extra.setdefault("xPaddingBytes", x_padding_bytes)
+        extra["noGRPCHeader"] = noGRPCHeader
+        xmux_out = dict(xmux) if xmux else {}
         if keepAlivePeriod > 0:
-            config["keepAlivePeriod"] = keepAlivePeriod
-        # core will ignore unknown variables
+            xmux_out.setdefault("hKeepAlivePeriod", keepAlivePeriod)
+        if xmux_out:
+            extra["xmux"] = xmux_out
+        if downloadSettings:
+            extra["downloadSettings"] = downloadSettings
 
         return config
 
@@ -926,6 +945,7 @@ class V2rayJsonConfig(str):
                             noGRPCHeader: bool = False,
                             heartbeatPeriod: int = 0,
                             keepAlivePeriod: int = 0,
+                            downloadSettings: dict = None,
                             ) -> dict:
 
         if net == "ws":
@@ -959,6 +979,7 @@ class V2rayJsonConfig(str):
                                                     mode=mode,
                                                     noGRPCHeader=noGRPCHeader,
                                                     keepAlivePeriod=keepAlivePeriod,
+                                                    downloadSettings=downloadSettings,
                                                     )
         else:
             network_setting = {}
@@ -1070,6 +1091,7 @@ class V2rayJsonConfig(str):
             noGRPCHeader=inbound.get("noGRPCHeader", False),
             heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
             keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
+            downloadSettings=inbound.get("downloadSettings"),
         )
 
         mux_json = json.loads(self.mux_template)

@@ -300,17 +300,22 @@ class XRayConfig(dict):
                     settings['host'] = [host]
 
                 elif net in ('splithttp', 'xhttp'):
+                    extra = net_settings.get('extra', {})
                     settings['path'] = net_settings.get('path', '')
                     host = net_settings.get('host', '')
                     settings['host'] = [host]
-                    settings['scMaxEachPostBytes'] = net_settings.get('scMaxEachPostBytes', 1000000)
-                    settings['scMaxConcurrentPosts'] = net_settings.get('scMaxConcurrentPosts', 100)
-                    settings['scMinPostsIntervalMs'] = net_settings.get('scMinPostsIntervalMs', 30)
-                    settings['xPaddingBytes'] = net_settings.get('xPaddingBytes', "100-1000")
-                    settings['xmux'] = net_settings.get('xmux', {})
-                    settings["mode"] = net_settings.get("mode", "auto")
-                    settings["noGRPCHeader"] = net_settings.get("noGRPCHeader", False)
-                    settings["keepAlivePeriod"] = net_settings.get("keepAlivePeriod", 0)
+                    settings['mode'] = net_settings.get('mode', 'auto')
+                    settings['noGRPCHeader'] = extra.get('noGRPCHeader', net_settings.get('noGRPCHeader', False))
+                    settings['scMaxEachPostBytes'] = extra.get('scMaxEachPostBytes', net_settings.get('scMaxEachPostBytes', 1000000))
+                    settings['scMaxConcurrentPosts'] = extra.get('scMaxConcurrentPosts', net_settings.get('scMaxConcurrentPosts', 100))
+                    settings['scMinPostsIntervalMs'] = extra.get('scMinPostsIntervalMs', net_settings.get('scMinPostsIntervalMs', 30))
+                    settings['xPaddingBytes'] = extra.get('xPaddingBytes', net_settings.get('xPaddingBytes', "100-1000"))
+                    settings['xmux'] = extra.get('xmux', net_settings.get('xmux', {}))
+                    xmux = settings['xmux']
+                    settings['keepAlivePeriod'] = xmux.get('hKeepAlivePeriod', extra.get('keepAlivePeriod', net_settings.get('keepAlivePeriod', 0)))
+                    ds = extra.get('downloadSettings', net_settings.get('downloadSettings'))
+                    if ds:
+                        settings['downloadSettings'] = ds
 
                 elif net == 'kcp':
                     header = net_settings.get('header', {})
