@@ -67,7 +67,7 @@ def add_user(dbuser: "DBUser"):
             try:
                 proxy_settings = user.proxies[proxy_type].dict(no_obj=True)
             except KeyError:
-                pass
+                continue
             account = proxy_type.account_model(email=email, **proxy_settings)
 
             # XTLS currently only supports transmission methods of TCP and mKCP
@@ -113,7 +113,7 @@ def update_user(dbuser: "DBUser"):
             try:
                 proxy_settings = user.proxies[proxy_type].dict(no_obj=True)
             except KeyError:
-                pass
+                continue
             account = proxy_type.account_model(email=email, **proxy_settings)
 
             # XTLS currently only supports transmission methods of TCP and mKCP

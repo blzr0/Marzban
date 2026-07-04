@@ -128,7 +128,7 @@ def user_subscription(
         conf = generate_subscription(user=user, config_format="clash", as_base64=False, reverse=False)
         return Response(content=conf, media_type="text/yaml", headers=response_headers)
 
-    elif re.match(r'^(SFA|SFI|SFM|SFT|[Kk]aring|[Hh]iddify[Nn]ext)', user_agent):
+    elif re.match(r'^(SFA|SFI|SFM|SFT|[Kk]aring|[Hh]iddify[Nn]ext|[Ii]n[Hh]ive)', user_agent):
         conf = generate_subscription(user=user, config_format="sing-box", as_base64=False, reverse=False)
         return Response(content=conf, media_type="application/json", headers=response_headers)
 
