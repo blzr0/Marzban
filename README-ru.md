@@ -324,6 +324,17 @@ server {
 | USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                                  |
 | USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                                |
 | USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                                   |
+| SUB_PROFILE_TITLE                        | Базовый текст заголовка подписки `profile-title`, отображается перед эмодзи и именем пользователя (по умолчанию: `Subscription`) |
+| SUB_SUPPORT_URL                          | Ссылка на поддержку, отправляемая в заголовке подписки `support-url` (по умолчанию: `https://t.me/`)                          |
+| SUB_UPDATE_INTERVAL                      | Интервал обновления подписки, сообщаемый в заголовке `profile-update-interval`, в часах (по умолчанию: `12`)                   |
+| SUB_ANNOUNCE                             | Текст объявления, отправляемый в заголовке подписки `announce`, если задан                                                     |
+| SUB_PROFILE_TITLE_EMOJI                  | Эмодзи, отображаемый рядом с заголовком профиля подписки (по умолчанию: `🪨`)                                                  |
+| EXPIRED_SUB_ENABLED                      | Отдавать вместо реального конфига заглушку-подписку, когда пользователь истёк или лимитирован (по умолчанию: `False`)          |
+| EXPIRED_SUB_LINK                         | Ссылка, на которую перенаправляются запросы подписки истёкших/лимитированных пользователей (обязательна при `EXPIRED_SUB_ENABLED=True`) |
+| EXPIRED_SUB_TITLES                       | Сообщения через `\|`, показываемые истёкшим/лимитированным пользователям вместо их реальных конфигов                            |
+| EXPIRED_SUB_SUPPORT_URL                  | Ссылка на поддержку для истёкших/лимитированных пользователей (если не задана — используется `SUB_SUPPORT_URL`)                |
+| EXPIRED_SUB_UPDATE_INTERVAL              | Интервал обновления подписки в часах, сообщаемый истёкшим/лимитированным пользователям (по умолчанию: `1`)                     |
+| EXPIRED_SUB_ANNOUNCE                     | Заголовок-объявление, отправляемый вместе с заглушкой-подпиской для истёкших/лимитированных пользователей                      |
 
 # документация
 

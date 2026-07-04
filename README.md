@@ -319,6 +319,17 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                            |
 | USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                          |
 | USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                             |
+| SUB_PROFILE_TITLE                        | Base text used for the subscription `profile-title` header, shown before the emoji and username (default: `Subscription`) |
+| SUB_PROFILE_TITLE_EMOJI                  | Emoji shown next to the subscription profile title (default: `🪨`)                                                       |
+| SUB_SUPPORT_URL                          | Support URL sent in the subscription's `support-url` header (default: `https://t.me/`)                                   |
+| SUB_UPDATE_INTERVAL                      | Subscription update interval advertised in the `profile-update-interval` header, in hours (default: `12`)                |
+| SUB_ANNOUNCE                             | Announce message sent in the subscription's `announce` header, if set                                                    |
+| EXPIRED_SUB_ENABLED                      | Serve a stub subscription instead of real configs once a user is expired/limited (default: `False`)                      |
+| EXPIRED_SUB_LINK                         | Link to redirect expired/limited users' subscription requests to (required if `EXPIRED_SUB_ENABLED` is set)              |
+| EXPIRED_SUB_TITLES                       | Pipe (`\|`)-separated messages shown to expired/limited users in place of their real configs                             |
+| EXPIRED_SUB_SUPPORT_URL                  | Support URL shown to expired/limited users (falls back to `SUB_SUPPORT_URL` if unset)                                    |
+| EXPIRED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised to expired/limited users, in hours (default: `1`)                                |
+| EXPIRED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for expired/limited users                                         |
 
 
 # Documentation

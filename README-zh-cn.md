@@ -311,6 +311,17 @@ server {
 | USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                           |
 | USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                         |
 | USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                            |
+| SUB_PROFILE_TITLE                        | 订阅 `profile-title` 头中使用的基础文本，显示在表情符号和用户名之前（默认：`Subscription`）                                  |
+| SUB_SUPPORT_URL                          | 在订阅 `support-url` 头中发送的支持链接（默认：`https://t.me/`）                                                            |
+| SUB_UPDATE_INTERVAL                      | 在 `profile-update-interval` 头中告知的订阅更新间隔，单位为小时（默认：`12`）                                                |
+| SUB_ANNOUNCE                             | 如果设置，将在订阅 `announce` 头中发送的公告文本                                                                             |
+| SUB_PROFILE_TITLE_EMOJI                  | 订阅个人资料标题旁显示的表情符号（默认：`🪨`）                                                                              |
+| EXPIRED_SUB_ENABLED                      | 当用户过期或达到流量限制时，返回占位订阅而非真实配置（默认：`False`）                                                        |
+| EXPIRED_SUB_LINK                         | 过期/受限用户的订阅请求将被重定向到的链接（启用 `EXPIRED_SUB_ENABLED` 时必填）                                                |
+| EXPIRED_SUB_TITLES                       | 以 `\|` 分隔的消息，展示给过期/受限用户以代替其真实配置                                                                      |
+| EXPIRED_SUB_SUPPORT_URL                  | 展示给过期/受限用户的支持链接（未设置时回退为 `SUB_SUPPORT_URL`）                                                            |
+| EXPIRED_SUB_UPDATE_INTERVAL              | 向过期/受限用户展示的订阅更新间隔，单位为小时（默认：`1`）                                                                   |
+| EXPIRED_SUB_ANNOUNCE                     | 随占位订阅一起发送给过期/受限用户的公告头                                                                                    |
 
 
 # 文档
