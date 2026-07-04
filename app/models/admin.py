@@ -42,18 +42,22 @@ class Admin(BaseModel):
         if not payload:
             return
 
-        if payload['username'] in SUDOERS and payload['is_sudo'] is True:
-            return cls(username=payload['username'], is_sudo=True)
-
         dbadmin = crud.get_admin(db, payload['username'])
-        if not dbadmin:
-            return
 
-        if dbadmin.password_reset_at:
+        # A DB-backed record for this username, if any, is authoritative for revocation:
+        # a password reset there must invalidate outstanding tokens, including for
+        # env-configured SUDOERS whose username shadows a DB admin row.
+        if dbadmin and dbadmin.password_reset_at:
             if not payload.get("created_at"):
                 return
             if dbadmin.password_reset_at > payload.get("created_at"):
                 return
+
+        if payload['username'] in SUDOERS and payload['is_sudo'] is True:
+            return cls(username=payload['username'], is_sudo=True)
+
+        if not dbadmin:
+            return
 
         return cls.model_validate(dbadmin)
 
