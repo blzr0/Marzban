@@ -213,6 +213,11 @@ const schema = z.discriminatedUnion("status", [
   }),
 ]);
 
+const formatResetDate = (value: string | null | undefined) => {
+  if (!value) return "-";
+  return dayjs.utc(value).local().format("YYYY-MM-DD HH:mm");
+};
+
 export const UserDialog: FC<UserDialogProps> = () => {
   const {
     editingUser,
@@ -544,7 +549,7 @@ export const UserDialog: FC<UserDialogProps> = () => {
                         animateOpacity
                         style={{ width: "100%" }}
                       >
-                        <FormControl height="66px">
+                        <FormControl height={isEditing ? "auto" : "66px"}>
                           <FormLabel>
                             {t("userDialog.periodicUsageReset")}
                           </FormLabel>
@@ -580,6 +585,32 @@ export const UserDialog: FC<UserDialogProps> = () => {
                               );
                             }}
                           />
+                          {isEditing && editingUser && (
+                            <VStack align="start" spacing={0} mt={1}>
+                              <Text
+                                fontSize="xs"
+                                color="gray.500"
+                                _dark={{ color: "gray.400" }}
+                              >
+                                {t("userDialog.lastTrafficReset")}:{" "}
+                                {formatResetDate(
+                                  editingUser.last_traffic_reset_time
+                                )}
+                              </Text>
+                              {editingUser.next_traffic_reset_time && (
+                                <Text
+                                  fontSize="xs"
+                                  color="gray.500"
+                                  _dark={{ color: "gray.400" }}
+                                >
+                                  {t("userDialog.nextTrafficReset")}:{" "}
+                                  {formatResetDate(
+                                    editingUser.next_traffic_reset_time
+                                  )}
+                                </Text>
+                              )}
+                            </VStack>
+                          )}
                         </FormControl>
                       </Collapse>
 

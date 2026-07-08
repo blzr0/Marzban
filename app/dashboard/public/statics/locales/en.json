@@ -163,6 +163,8 @@
   "userDialog.onHoldExpireDuration": "Expire Duration",
   "userDialog.optional": "optional",
   "userDialog.periodicUsageReset": "Periodic Usage Reset",
+  "userDialog.lastTrafficReset": "Last usage reset",
+  "userDialog.nextTrafficReset": "Next usage reset",
   "userDialog.protocols": "Protocols",
   "userDialog.relative": "Relative",
   "userDialog.resetStrategyAnnually": "Annually",

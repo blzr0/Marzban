@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Union
 
@@ -46,6 +46,16 @@ class UserDataLimitResetStrategy(str, Enum):
     week = "week"
     month = "month"
     year = "year"
+
+
+# Also used by app/jobs/reset_user_data_usage.py, which imports this rather than
+# defining its own copy (defining it here avoids that module's scheduler.add_job side effect).
+reset_strategy_to_days = {
+    UserDataLimitResetStrategy.day.value: 1,
+    UserDataLimitResetStrategy.week.value: 7,
+    UserDataLimitResetStrategy.month.value: 30,
+    UserDataLimitResetStrategy.year.value: 365,
+}
 
 
 class NextPlanModel(BaseModel):
@@ -291,7 +301,18 @@ class UserResponse(User):
     excluded_inbounds: Dict[ProxyTypes, List[str]] = {}
 
     admin: Optional[Admin] = None
+    last_traffic_reset_time: Optional[datetime] = None
+    next_traffic_reset_time: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def validate_next_traffic_reset_time(self):
+        num_days = reset_strategy_to_days.get(self.data_limit_reset_strategy)
+        if num_days and self.last_traffic_reset_time:
+            self.next_traffic_reset_time = self.last_traffic_reset_time + timedelta(days=num_days)
+        else:
+            self.next_traffic_reset_time = None
+        return self
 
     @model_validator(mode="after")
     def validate_links(self):

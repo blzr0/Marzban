@@ -2,14 +2,7 @@ from datetime import datetime
 
 from app import logger, scheduler, xray
 from app.db import crud, GetDB, get_users
-from app.models.user import UserDataLimitResetStrategy, UserStatus
-
-reset_strategy_to_days = {
-    UserDataLimitResetStrategy.day.value: 1,
-    UserDataLimitResetStrategy.week.value: 7,
-    UserDataLimitResetStrategy.month.value: 30,
-    UserDataLimitResetStrategy.year.value: 365,
-}
+from app.models.user import UserDataLimitResetStrategy, UserStatus, reset_strategy_to_days
 
 
 def reset_user_data_usage():

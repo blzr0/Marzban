@@ -169,6 +169,8 @@
   "userDialog.onHoldExpireDuration": "مدت انقضا",
   "userDialog.optional": "اختیاری",
   "userDialog.periodicUsageReset": "بازنشانی دوره‌ای مصرف",
+  "userDialog.lastTrafficReset": "آخرین بازنشانی مصرف",
+  "userDialog.nextTrafficReset": "بازنشانی بعدی مصرف",
   "userDialog.protocols": "پروتکل‌ها",
   "userDialog.relative": "نسبی",
   "userDialog.resetStrategyAnnually": "سالانه",

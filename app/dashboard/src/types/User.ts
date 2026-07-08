@@ -51,6 +51,8 @@ export type User = {
   note: string;
   online_at: string;
   sub_last_user_agent: string | null;
+  last_traffic_reset_time: string | null;
+  next_traffic_reset_time: string | null;
 };
 
 export type UserCreate = Pick<

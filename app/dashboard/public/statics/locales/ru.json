@@ -163,6 +163,8 @@
   "userDialog.onHoldExpireDuration": "Продолжительность срока действия",
   "userDialog.optional": "необязательно",
   "userDialog.periodicUsageReset": "Период сброса трафика",
+  "userDialog.lastTrafficReset": "Последний сброс трафика",
+  "userDialog.nextTrafficReset": "Следующий сброс трафика",
   "userDialog.protocols": "Протоколы",
   "userDialog.relative": "Относительно",
   "userDialog.resetStrategyAnnually": "Ежегодно",
