@@ -7,7 +7,11 @@ from contextlib import contextmanager
 
 from app import logger
 from app.xray.config import XRayConfig
-from config import DEBUG
+from config import DEBUG, INBOUNDS
+
+# tag of the inbound Marzban injects for its own API/stats access;
+# must always survive local filtering or the panel loses control of its own core
+API_INBOUND_TAG = "API_INBOUND"
 
 
 class XRayCore:
@@ -97,9 +101,36 @@ class XRayCore:
 
         return False
 
+    def _filter_local_inbounds(self, config: XRayConfig) -> XRayConfig:
+        """Restrict the config used to start the *local* Xray process to the
+        inbounds listed in INBOUNDS (master-only setting). Returns a separate
+        copy; the config object passed in (which is also handed to nodes) is
+        never mutated, so nodes keep receiving the full, unfiltered config.
+        """
+        if not INBOUNDS:
+            return config
+
+        keep_tags = set(INBOUNDS) | {API_INBOUND_TAG}
+        inbounds = config.get("inbounds", [])
+        kept = [inbound for inbound in inbounds if inbound.get("tag") in keep_tags]
+        dropped = [inbound.get("tag") for inbound in inbounds if inbound.get("tag") not in keep_tags]
+
+        if not dropped:
+            return config
+
+        filtered = config.copy()
+        filtered["inbounds"] = kept
+        logger.info(
+            f"INBOUNDS filter: starting local Xray with {[i.get('tag') for i in kept]}, "
+            f"skipping {dropped} (still sent to nodes unfiltered)"
+        )
+        return filtered
+
     def start(self, config: XRayConfig):
         if self.started is True:
             raise RuntimeError("Xray is started already")
+
+        config = self._filter_local_inbounds(config)
 
         if config.get('log', {}).get('logLevel') in ('none', 'error'):
             config['log']['logLevel'] = 'warning'

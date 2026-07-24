@@ -9,8 +9,17 @@ from app.models.node import NodeStatus
 from app.models.user import UserResponse
 from app.utils.concurrency import threaded_function
 from app.xray.node import XRayNode
+from config import INBOUNDS
 from xray_api import XRay as XRayAPI
 from xray_api.types.account import Account, XTLSFlows
+
+
+def _is_on_local_core(inbound_tag: str) -> bool:
+    # when INBOUNDS filters the master's local Xray, tags not in the list
+    # were never started there, so skip the local API call to avoid
+    # TagNotFoundError; nodes are unaffected as they always get all tags
+    return not INBOUNDS or inbound_tag in INBOUNDS
+
 
 if TYPE_CHECKING:
     from app.db import User as DBUser
@@ -84,7 +93,8 @@ def add_user(dbuser: "DBUser"):
             ):
                 account.flow = XTLSFlows.NONE
 
-            _add_user_to_inbound(xray.api, inbound_tag, account)  # main core
+            if _is_on_local_core(inbound_tag):
+                _add_user_to_inbound(xray.api, inbound_tag, account)  # main core
             for node in list(xray.nodes.values()):
                 if node.connected and node.started:
                     _add_user_to_inbound(node.api, inbound_tag, account)
@@ -94,7 +104,8 @@ def remove_user(dbuser: "DBUser"):
     email = f"{dbuser.id}.{dbuser.username}"
 
     for inbound_tag in xray.config.inbounds_by_tag:
-        _remove_user_from_inbound(xray.api, inbound_tag, email)
+        if _is_on_local_core(inbound_tag):
+            _remove_user_from_inbound(xray.api, inbound_tag, email)
         for node in list(xray.nodes.values()):
             if node.connected and node.started:
                 _remove_user_from_inbound(node.api, inbound_tag, email)
@@ -130,7 +141,8 @@ def update_user(dbuser: "DBUser"):
             ):
                 account.flow = XTLSFlows.NONE
 
-            _alter_inbound_user(xray.api, inbound_tag, account)  # main core
+            if _is_on_local_core(inbound_tag):
+                _alter_inbound_user(xray.api, inbound_tag, account)  # main core
             for node in list(xray.nodes.values()):
                 if node.connected and node.started:
                     _alter_inbound_user(node.api, inbound_tag, account)
@@ -139,7 +151,8 @@ def update_user(dbuser: "DBUser"):
         if inbound_tag in active_inbounds:
             continue
         # remove disabled inbounds
-        _remove_user_from_inbound(xray.api, inbound_tag, email)
+        if _is_on_local_core(inbound_tag):
+            _remove_user_from_inbound(xray.api, inbound_tag, email)
         for node in list(xray.nodes.values()):
             if node.connected and node.started:
                 _remove_user_from_inbound(node.api, inbound_tag, email)
