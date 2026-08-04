@@ -3,7 +3,7 @@ from typing import Optional, Union
 from app.models.admin import AdminInDB, AdminValidationResult, Admin
 from app.models.user import UserResponse, UserStatus
 from app.db import Session, crud, get_db
-from config import DELETED_SUB_ENABLED, SUDOERS
+from config import DELETED_SUB_ENABLED, DELETED_SUB_LINK, DELETED_SUB_TITLES, SUDOERS
 from fastapi import Depends, HTTPException
 from datetime import datetime, timezone, timedelta
 from app.utils.jwt import get_subscription_payload
@@ -110,16 +110,20 @@ def get_sub_or_deleted(
         token: str,
         db: Session = Depends(get_db)
 ) -> SubOrDeleted:
-    """Like get_validated_sub, but when DELETED_SUB_ENABLED is on, a
-    signature-valid token for a user who no longer exists resolves to a
-    "deleted" marker instead of 404, so the caller can serve a stub
-    subscription. A revoked token for a still-existing user still 404s -
-    the link is compromised, not stale.
+    """Like get_validated_sub, but when DELETED_SUB_ENABLED is on and both
+    DELETED_SUB_LINK/DELETED_SUB_TITLES are set, a signature-valid token for
+    a user who no longer exists resolves to a "deleted" marker instead of
+    404, so the caller can serve a stub subscription. A revoked token for a
+    still-existing user still 404s - the link is compromised, not stale.
+
+    Both DELETED_SUB_LINK and DELETED_SUB_TITLES are required (not just the
+    enabled flag) so an incomplete config falls back to 404 instead of
+    silently serving an empty stub subscription.
     """
     sub, dbuser = _resolve_sub_token(token, db)
 
     if not dbuser or dbuser.created_at > sub['created_at']:
-        if DELETED_SUB_ENABLED:
+        if DELETED_SUB_ENABLED and DELETED_SUB_LINK and DELETED_SUB_TITLES:
             return SubOrDeleted(deleted_username=sub['username'])
         raise HTTPException(status_code=404, detail="Not Found")
 
