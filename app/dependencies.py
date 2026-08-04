@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 from typing import Optional, Union
 from app.models.admin import AdminInDB, AdminValidationResult, Admin
 from app.models.user import UserResponse, UserStatus
 from app.db import Session, crud, get_db
-from config import SUDOERS
+from config import DELETED_SUB_ENABLED, SUDOERS
 from fastapi import Depends, HTTPException
 from datetime import datetime, timezone, timedelta
 from app.utils.jwt import get_subscription_payload
@@ -64,15 +65,26 @@ def get_user_template(template_id: int, db: Session = Depends(get_db)):
     return dbuser_template
 
 
-def get_validated_sub(
-        token: str,
-        db: Session = Depends(get_db)
-) -> UserResponse:
+def _resolve_sub_token(token: str, db: Session):
+    """Validate a subscription token's signature and look up its user.
+
+    Raises 404 for an invalid/unsigned token. Returns (sub_payload, dbuser)
+    otherwise; dbuser is None (or stale, i.e. created after the token) when
+    the token's username no longer matches a live user.
+    """
     sub = get_subscription_payload(token)
     if not sub:
         raise HTTPException(status_code=404, detail="Not Found")
 
     dbuser = crud.get_user(db, sub['username'])
+    return sub, dbuser
+
+
+def get_validated_sub(
+        token: str,
+        db: Session = Depends(get_db)
+) -> UserResponse:
+    sub, dbuser = _resolve_sub_token(token, db)
     if not dbuser or dbuser.created_at > sub['created_at']:
         raise HTTPException(status_code=404, detail="Not Found")
 
@@ -80,6 +92,41 @@ def get_validated_sub(
         raise HTTPException(status_code=404, detail="Not Found")
 
     return dbuser
+
+
+@dataclass
+class SubOrDeleted:
+    """Result of resolving a subscription token that may belong to a deleted user.
+
+    Exactly one of the two fields is set. `deleted_username` (not a bare
+    string return value) marks a signature-valid token whose user no longer
+    exists, so callers can't mistake it for a live UserResponse.
+    """
+    dbuser: Optional[UserResponse] = None
+    deleted_username: Optional[str] = None
+
+
+def get_sub_or_deleted(
+        token: str,
+        db: Session = Depends(get_db)
+) -> SubOrDeleted:
+    """Like get_validated_sub, but when DELETED_SUB_ENABLED is on, a
+    signature-valid token for a user who no longer exists resolves to a
+    "deleted" marker instead of 404, so the caller can serve a stub
+    subscription. A revoked token for a still-existing user still 404s -
+    the link is compromised, not stale.
+    """
+    sub, dbuser = _resolve_sub_token(token, db)
+
+    if not dbuser or dbuser.created_at > sub['created_at']:
+        if DELETED_SUB_ENABLED:
+            return SubOrDeleted(deleted_username=sub['username'])
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    if dbuser.sub_revoked_at and dbuser.sub_revoked_at > sub['created_at']:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    return SubOrDeleted(dbuser=dbuser)
 
 
 def get_validated_user(

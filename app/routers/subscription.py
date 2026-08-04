@@ -3,15 +3,20 @@ import re
 import urllib.parse
 from distutils.version import LooseVersion
 
-from fastapi import APIRouter, Depends, Header, Path, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
 from fastapi.responses import HTMLResponse
 
 from app.db import Session, crud, get_db
-from app.dependencies import get_validated_sub, validate_dates
+from app.dependencies import SubOrDeleted, get_sub_or_deleted, get_validated_sub, validate_dates
 from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_subscription
 from app.templates import render_template
 from config import (
+    DELETED_SUB_ANNOUNCE,
+    DELETED_SUB_LINK,
+    DELETED_SUB_SUPPORT_URL,
+    DELETED_SUB_TITLES,
+    DELETED_SUB_UPDATE_INTERVAL,
     EXPIRED_SUB_ANNOUNCE,
     EXPIRED_SUB_ENABLED,
     EXPIRED_SUB_LINK,
@@ -121,18 +126,56 @@ def build_expired_subscription_response(user: "UserResponse", request: Request) 
     return Response(content=encoded, media_type="text/plain", headers=headers)
 
 
+def build_deleted_subscription_response(username: str, request: Request) -> Response:
+    """Stub subscription for a signature-valid token whose user no longer
+    exists. Only reads `username` from the token - never touches the DB, so
+    this stays safe to call for any signature-valid token regardless of
+    whether the user (or a same-named replacement) exists.
+    """
+    titles = [t.strip() for t in DELETED_SUB_TITLES.split("|") if t.strip()]
+    stub_links = "\n".join(
+        f"{DELETED_SUB_LINK}#{urllib.parse.quote(title)}"
+        for title in titles
+    )
+    encoded = base64.b64encode(stub_links.encode()).decode()
+
+    support_url = DELETED_SUB_SUPPORT_URL or SUB_SUPPORT_URL
+    announce_text = DELETED_SUB_ANNOUNCE.replace("\\n", "\n") if DELETED_SUB_ANNOUNCE else None
+
+    headers = {
+        "content-disposition": f'attachment; filename="{username}"',
+        "profile-web-page-url": str(request.url),
+        "support-url": support_url,
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {username}"),
+        "profile-update-interval": DELETED_SUB_UPDATE_INTERVAL,
+        "subscription-userinfo": "; ".join(
+            f"{k}={v}" for k, v in {"upload": 0, "download": 0, "total": 0, "expire": 0}.items()
+        ),
+        **({"announce": encode_title(announce_text)} if announce_text else {}),
+    }
+    return Response(content=encoded, media_type="text/plain", headers=headers)
+
+
 @router.get("/{token}/")
 @router.get("/{token}", include_in_schema=False)
 def user_subscription(
     request: Request,
     db: Session = Depends(get_db),
-    dbuser: UserResponse = Depends(get_validated_sub),
+    sub_result: SubOrDeleted = Depends(get_sub_or_deleted),
     user_agent: str = Header(default="")
 ):
     """Provides a subscription link based on the user agent (Clash, V2Ray, etc.)."""
+    accept_header = request.headers.get("Accept", "")
+
+    if sub_result.deleted_username is not None:
+        if "text/html" in accept_header:
+            # no user object to render the subscription page with
+            raise HTTPException(status_code=404, detail="Not Found")
+        return build_deleted_subscription_response(sub_result.deleted_username, request)
+
+    dbuser = sub_result.dbuser
     user: UserResponse = UserResponse.model_validate(dbuser)
 
-    accept_header = request.headers.get("Accept", "")
     if "text/html" in accept_header:
         return HTMLResponse(
             render_template(

@@ -152,6 +152,14 @@ EXPIRED_SUB_SUPPORT_URL = config("EXPIRED_SUB_SUPPORT_URL", default="")
 EXPIRED_SUB_UPDATE_INTERVAL = config("EXPIRED_SUB_UPDATE_INTERVAL", default="1")
 EXPIRED_SUB_ANNOUNCE = config("EXPIRED_SUB_ANNOUNCE", default="")
 
+# stub subscription for a signature-valid token whose user no longer exists
+DELETED_SUB_ENABLED = config("DELETED_SUB_ENABLED", cast=bool, default=False)
+DELETED_SUB_LINK = config("DELETED_SUB_LINK", default="")
+DELETED_SUB_TITLES = config("DELETED_SUB_TITLES", default="")
+DELETED_SUB_SUPPORT_URL = config("DELETED_SUB_SUPPORT_URL", default="")
+DELETED_SUB_UPDATE_INTERVAL = config("DELETED_SUB_UPDATE_INTERVAL", default="12")
+DELETED_SUB_ANNOUNCE = config("DELETED_SUB_ANNOUNCE", default="")
+
 # extra links appended to the end of v2ray-format subscriptions for active users
 EXTRA_SUB_ENABLED = config("EXTRA_SUB_ENABLED", cast=bool, default=False)
 EXTRA_SUB_LINKS = config("EXTRA_SUB_LINKS", default="")
