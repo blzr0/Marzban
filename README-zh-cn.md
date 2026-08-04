@@ -290,6 +290,7 @@ server {
 | XRAY_SUBSCRIPTION_URL_PREFIX             | 订阅URL的前缀                                                                                                                |
 | XRAY_FALLBACKS_INBOUND_TAG               | 包含 fallbacks 的入站标记, 在您需要使用 fallbacks 配置此项                                                                               |
 | XRAY_EXCLUDE_INBOUND_TAGS                | 不需要此应用程序管理或在链接中包含的入站标记                                                                                                  |
+| INBOUNDS                                 | 仅主控：本地 Xray 进程应绑定的入站标记（逗号分隔）；节点不受影响，始终通过自身的 `INBOUNDS` 变量接收完整配置（默认：不过滤）                                                          |
 | CLASH_SUBSCRIPTION_TEMPLATE              | 将用于生成冲突配置的模板（默认值：`clash/default.yml`）                                                                                   |
 | SUBSCRIPTION_PAGE_TEMPLATE               | 用于生成订阅信息页面的模板（默认：`subscription/index.html`）                                                                             |
 | HOME_PAGE_TEMPLATE                       | 诱饵页面模板（默认：`home/index.html`）                                                                                            |
@@ -322,6 +323,15 @@ server {
 | EXPIRED_SUB_SUPPORT_URL                  | 展示给过期/受限用户的支持链接（未设置时回退为 `SUB_SUPPORT_URL`）                                                            |
 | EXPIRED_SUB_UPDATE_INTERVAL              | 向过期/受限用户展示的订阅更新间隔，单位为小时（默认：`1`）                                                                   |
 | EXPIRED_SUB_ANNOUNCE                     | 随占位订阅一起发送给过期/受限用户的公告头                                                                                    |
+| DELETED_SUB_ENABLED                      | 为签名有效但用户已被删除的令牌返回占位订阅而非 404（默认：`False`）                                                          |
+| DELETED_SUB_LINK                         | 用于生成已删除用户占位链接的链接（与 `DELETED_SUB_TITLES` 一起为必填项，`DELETED_SUB_ENABLED` 才会生效）                          |
+| DELETED_SUB_TITLES                       | 以 `\|` 分隔的消息，展示给已删除用户以代替真实配置                                                                          |
+| DELETED_SUB_SUPPORT_URL                  | 展示给已删除用户的支持链接（未设置时回退为 `SUB_SUPPORT_URL`）                                                              |
+| DELETED_SUB_UPDATE_INTERVAL              | 向已删除用户展示的订阅更新间隔，单位为小时（默认：`12`）                                                                     |
+| DELETED_SUB_ANNOUNCE                     | 随占位订阅一起发送给已删除用户的公告头                                                                                      |
+| EXTRA_SUB_ENABLED                        | 为活跃用户在 v2ray 格式订阅末尾追加额外链接（默认：`False`）                                                                 |
+| EXTRA_SUB_LINKS                          | 以 `\|` 分隔的链接，原样（已编码）追加到活跃用户订阅末尾                                                                     |
+| EXTRA_SUB_REQUIRED_INBOUND               | 以逗号分隔的入站标记，用户需拥有其中至少一个才能获得 `EXTRA_SUB_LINKS`；留空表示所有活跃用户都可获得                                |
 
 
 # 文档

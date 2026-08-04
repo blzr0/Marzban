@@ -297,6 +297,7 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | XRAY_SUBSCRIPTION_URL_PREFIX             | Prefix of subscription URLs                                                                                              |
 | XRAY_FALLBACKS_INBOUND_TAG               | Tag of the inbound that includes fallbacks, needed in the case you're using fallbacks                                    |
 | XRAY_EXCLUDE_INBOUND_TAGS                | Tags of the inbounds that shouldn't be managed and included in links by application                                      |
+| INBOUNDS                                 | Master-only: comma-separated inbound tags the local Xray process should bind to; nodes are unaffected and always receive the full config via their own `INBOUNDS` (default: no filtering) |
 | CUSTOM_TEMPLATES_DIRECTORY               | Customized templates directory (default: `app/templates`)                                                                |
 | CLASH_SUBSCRIPTION_TEMPLATE              | The template that will be used for generating clash configs (default: `clash/default.yml`)                               |
 | SUBSCRIPTION_PAGE_TEMPLATE               | The template used for generating subscription info page (default: `subscription/index.html`)                             |
@@ -330,6 +331,15 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | EXPIRED_SUB_SUPPORT_URL                  | Support URL shown to expired/limited users (falls back to `SUB_SUPPORT_URL` if unset)                                    |
 | EXPIRED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised to expired/limited users, in hours (default: `1`)                                |
 | EXPIRED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for expired/limited users                                         |
+| DELETED_SUB_ENABLED                      | Serve a stub subscription instead of 404 for a signature-valid token whose user no longer exists (default: `False`)      |
+| DELETED_SUB_LINK                         | Link used to build the stub links shown to deleted users (required, along with `DELETED_SUB_TITLES`, for `DELETED_SUB_ENABLED` to take effect) |
+| DELETED_SUB_TITLES                       | Pipe (`\|`)-separated messages shown to deleted users in place of real configs                                            |
+| DELETED_SUB_SUPPORT_URL                  | Support URL shown to deleted users (falls back to `SUB_SUPPORT_URL` if unset)                                            |
+| DELETED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised to deleted users, in hours (default: `12`)                                       |
+| DELETED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for deleted users                                                  |
+| EXTRA_SUB_ENABLED                        | Append extra links to the end of v2ray-format subscriptions for active users (default: `False`)                          |
+| EXTRA_SUB_LINKS                          | Pipe (`\|`)-separated links appended as-is (already URL-encoded) to active users' v2ray subscriptions                     |
+| EXTRA_SUB_REQUIRED_INBOUND               | Comma-separated inbound tags required for a user to receive `EXTRA_SUB_LINKS`; empty means all active users get them     |
 
 
 # Documentation
