@@ -18,6 +18,9 @@ from config import (
     EXPIRED_SUB_SUPPORT_URL,
     EXPIRED_SUB_TITLES,
     EXPIRED_SUB_UPDATE_INTERVAL,
+    EXTRA_SUB_ENABLED,
+    EXTRA_SUB_LINKS,
+    EXTRA_SUB_REQUIRED_INBOUND,
     SUB_ANNOUNCE,
     SUB_PROFILE_TITLE,
     SUB_PROFILE_TITLE_EMOJI,
@@ -44,6 +47,11 @@ client_config = {
 
 router = APIRouter(tags=['Subscription'], prefix=f'/{XRAY_SUBSCRIPTION_PATH}')
 
+EXTRA_SUB_LINKS_LIST = [link.strip() for link in EXTRA_SUB_LINKS.split("|") if link.strip()]
+EXTRA_SUB_REQUIRED_INBOUND_TAGS = {
+    tag.strip() for tag in EXTRA_SUB_REQUIRED_INBOUND.split(",") if tag.strip()
+}
+
 
 def get_subscription_user_info(user: UserResponse) -> dict:
     """Retrieve user subscription information including upload, download, total data, and expiry."""
@@ -53,6 +61,37 @@ def get_subscription_user_info(user: UserResponse) -> dict:
         "total": user.data_limit if user.data_limit is not None else 0,
         "expire": user.expire if user.expire is not None else 0,
     }
+
+
+def get_extra_sub_links(user: "UserResponse") -> list:
+    """Extra links appended to the end of v2ray-format subscriptions.
+
+    Only for strictly active users (not on_hold/expired/limited/disabled), and
+    only when EXTRA_SUB_REQUIRED_INBOUND is empty or the user has at least one
+    of the listed inbound tags. Clients routed to v2ray-json (any
+    USE_CUSTOM_JSON_* setting) never see these links, since that format is
+    built from parsed proxy objects, not raw links - this is expected, not a bug.
+    """
+    if not EXTRA_SUB_ENABLED or not EXTRA_SUB_LINKS_LIST:
+        return []
+    if user.status != "active":
+        return []
+    if EXTRA_SUB_REQUIRED_INBOUND_TAGS:
+        user_tags = {tag for tags in (user.inbounds or {}).values() for tag in tags}
+        if not user_tags & EXTRA_SUB_REQUIRED_INBOUND_TAGS:
+            return []
+    return EXTRA_SUB_LINKS_LIST
+
+
+def build_v2ray_response(user: "UserResponse", headers: dict, extra_links: list) -> Response:
+    if not extra_links:
+        conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
+        return Response(content=conf, media_type="text/plain", headers=headers)
+
+    raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False)
+    combined = raw_conf.rstrip("\n") + "\n" + "\n".join(extra_links)
+    encoded = base64.b64encode(combined.encode()).decode()
+    return Response(content=encoded, media_type="text/plain", headers=headers)
 
 
 def build_expired_subscription_response(user: "UserResponse", request: Request) -> Response:
@@ -120,6 +159,8 @@ def user_subscription(
         **({"announce": encode_title(SUB_ANNOUNCE.replace("\\n", "\n"))} if SUB_ANNOUNCE else {}),
     }
 
+    extra_links = get_extra_sub_links(user)
+
     if re.match(r'^([Cc]lash-verge|[Cc]lash[-\.]?[Mm]eta|[Ff][Ll][Cc]lash|[Mm]ihomo)', user_agent):
         conf = generate_subscription(user=user, config_format="clash-meta", as_base64=False, reverse=False)
         return Response(content=conf, media_type="text/yaml", headers=response_headers)
@@ -142,8 +183,7 @@ def user_subscription(
             conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
-            conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
-            return Response(content=conf, media_type="text/plain", headers=response_headers)
+            return build_v2ray_response(user, response_headers, extra_links)
 
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYNG) and re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent):
         version_str = re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent).group(1)
@@ -154,16 +194,14 @@ def user_subscription(
             conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=True)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
-            conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
-            return Response(content=conf, media_type="text/plain", headers=response_headers)
+            return build_v2ray_response(user, response_headers, extra_links)
 
     elif re.match(r'^[Ss]treisand', user_agent):
         if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_STREISAND:
             conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
-            conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
-            return Response(content=conf, media_type="text/plain", headers=response_headers)
+            return build_v2ray_response(user, response_headers, extra_links)
 
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_HAPP) and re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent):
         version_str = re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent).group(1)
@@ -171,14 +209,10 @@ def user_subscription(
             conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
-            conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
-            return Response(content=conf, media_type="text/plain", headers=response_headers)
-
-
+            return build_v2ray_response(user, response_headers, extra_links)
 
     else:
-        conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
-        return Response(content=conf, media_type="text/plain", headers=response_headers)
+        return build_v2ray_response(user, response_headers, extra_links)
 
 
 @router.get("/{token}/info", response_model=SubscriptionUserResponse)

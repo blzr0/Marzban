@@ -152,6 +152,11 @@ EXPIRED_SUB_SUPPORT_URL = config("EXPIRED_SUB_SUPPORT_URL", default="")
 EXPIRED_SUB_UPDATE_INTERVAL = config("EXPIRED_SUB_UPDATE_INTERVAL", default="1")
 EXPIRED_SUB_ANNOUNCE = config("EXPIRED_SUB_ANNOUNCE", default="")
 
+# extra links appended to the end of v2ray-format subscriptions for active users
+EXTRA_SUB_ENABLED = config("EXTRA_SUB_ENABLED", cast=bool, default=False)
+EXTRA_SUB_LINKS = config("EXTRA_SUB_LINKS", default="")
+EXTRA_SUB_REQUIRED_INBOUND = config("EXTRA_SUB_REQUIRED_INBOUND", default="")
+
 # discord webhook log
 DISCORD_WEBHOOK_URL = config("DISCORD_WEBHOOK_URL", default="")
 
