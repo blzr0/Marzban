@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Re
 from fastapi.responses import HTMLResponse
 
 from app.db import Session, crud, get_db
-from app.dependencies import SubOrDeleted, get_sub_or_deleted, get_validated_sub, validate_dates
+from app.dependencies import ResolvedSub, SubState, get_resolved_sub, get_validated_sub, validate_dates
 from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_subscription
 from app.templates import render_template
@@ -26,6 +26,11 @@ from config import (
     EXTRA_SUB_ENABLED,
     EXTRA_SUB_LINKS,
     EXTRA_SUB_REQUIRED_INBOUND,
+    REVOKED_SUB_ANNOUNCE,
+    REVOKED_SUB_LINK,
+    REVOKED_SUB_SUPPORT_URL,
+    REVOKED_SUB_TITLES,
+    REVOKED_SUB_UPDATE_INTERVAL,
     SUB_ANNOUNCE,
     SUB_PROFILE_TITLE,
     SUB_PROFILE_TITLE_EMOJI,
@@ -126,28 +131,38 @@ def build_expired_subscription_response(user: "UserResponse", request: Request) 
     return Response(content=encoded, media_type="text/plain", headers=headers)
 
 
-def build_deleted_subscription_response(username: str, request: Request) -> Response:
-    """Stub subscription for a signature-valid token whose user no longer
-    exists. Only reads `username` from the token - never touches the DB, so
-    this stays safe to call for any signature-valid token regardless of
-    whether the user (or a same-named replacement) exists.
+def build_stub_subscription_response(
+    username: str,
+    request: Request,
+    *,
+    link: str,
+    titles: str,
+    support_url: str,
+    update_interval: str,
+    announce: str,
+) -> Response:
+    """Stub subscription for a signature-valid token that can't be served a
+    real config: user deleted (DELETED_SUB_*) or link revoked
+    (REVOKED_SUB_*). Only ever reads `username` from the token - never
+    touches real account data - so this stays safe to call regardless of
+    whether a live user exists behind the token.
     """
-    titles = [t.strip() for t in DELETED_SUB_TITLES.split("|") if t.strip()]
+    stub_titles = [t.strip() for t in titles.split("|") if t.strip()]
     stub_links = "\n".join(
-        f"{DELETED_SUB_LINK}#{urllib.parse.quote(title)}"
-        for title in titles
+        f"{link}#{urllib.parse.quote(title)}"
+        for title in stub_titles
     )
     encoded = base64.b64encode(stub_links.encode()).decode()
 
-    support_url = DELETED_SUB_SUPPORT_URL or SUB_SUPPORT_URL
-    announce_text = DELETED_SUB_ANNOUNCE.replace("\\n", "\n") if DELETED_SUB_ANNOUNCE else None
+    resolved_support_url = support_url or SUB_SUPPORT_URL
+    announce_text = announce.replace("\\n", "\n") if announce else None
 
     headers = {
         "content-disposition": f'attachment; filename="{username}"',
         "profile-web-page-url": str(request.url),
-        "support-url": support_url,
+        "support-url": resolved_support_url,
         "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {username}"),
-        "profile-update-interval": DELETED_SUB_UPDATE_INTERVAL,
+        "profile-update-interval": update_interval,
         "subscription-userinfo": "; ".join(
             f"{k}={v}" for k, v in {"upload": 0, "download": 0, "total": 0, "expire": 0}.items()
         ),
@@ -161,17 +176,34 @@ def build_deleted_subscription_response(username: str, request: Request) -> Resp
 def user_subscription(
     request: Request,
     db: Session = Depends(get_db),
-    sub_result: SubOrDeleted = Depends(get_sub_or_deleted),
+    sub_result: ResolvedSub = Depends(get_resolved_sub),
     user_agent: str = Header(default="")
 ):
     """Provides a subscription link based on the user agent (Clash, V2Ray, etc.)."""
     accept_header = request.headers.get("Accept", "")
 
-    if sub_result.deleted_username is not None:
+    if sub_result.state is SubState.DELETED:
         if "text/html" in accept_header:
             # no user object to render the subscription page with
             raise HTTPException(status_code=404, detail="Not Found")
-        return build_deleted_subscription_response(sub_result.deleted_username, request)
+        return build_stub_subscription_response(
+            sub_result.username, request,
+            link=DELETED_SUB_LINK, titles=DELETED_SUB_TITLES,
+            support_url=DELETED_SUB_SUPPORT_URL, update_interval=DELETED_SUB_UPDATE_INTERVAL,
+            announce=DELETED_SUB_ANNOUNCE,
+        )
+
+    if sub_result.state is SubState.REVOKED:
+        if "text/html" in accept_header:
+            # no user object to render the subscription page with, and the
+            # link may not belong to the account owner regardless
+            raise HTTPException(status_code=404, detail="Not Found")
+        return build_stub_subscription_response(
+            sub_result.username, request,
+            link=REVOKED_SUB_LINK, titles=REVOKED_SUB_TITLES,
+            support_url=REVOKED_SUB_SUPPORT_URL, update_interval=REVOKED_SUB_UPDATE_INTERVAL,
+            announce=REVOKED_SUB_ANNOUNCE,
+        )
 
     dbuser = sub_result.dbuser
     user: UserResponse = UserResponse.model_validate(dbuser)

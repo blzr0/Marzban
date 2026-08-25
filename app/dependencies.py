@@ -1,9 +1,18 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional, Union
 from app.models.admin import AdminInDB, AdminValidationResult, Admin
 from app.models.user import UserResponse, UserStatus
 from app.db import Session, crud, get_db
-from config import DELETED_SUB_ENABLED, DELETED_SUB_LINK, DELETED_SUB_TITLES, SUDOERS
+from config import (
+    DELETED_SUB_ENABLED,
+    DELETED_SUB_LINK,
+    DELETED_SUB_TITLES,
+    REVOKED_SUB_ENABLED,
+    REVOKED_SUB_LINK,
+    REVOKED_SUB_TITLES,
+    SUDOERS,
+)
 from fastapi import Depends, HTTPException
 from datetime import datetime, timezone, timedelta
 from app.utils.jwt import get_subscription_payload
@@ -94,43 +103,63 @@ def get_validated_sub(
     return dbuser
 
 
+class SubState(Enum):
+    """State of a signature-valid subscription token."""
+    LIVE = "live"
+    DELETED = "deleted"
+    REVOKED = "revoked"
+
+
 @dataclass
-class SubOrDeleted:
-    """Result of resolving a subscription token that may belong to a deleted user.
+class ResolvedSub:
+    """Result of resolving a subscription token, as an explicit state rather
+    than magic combinations of Optional fields.
 
-    Exactly one of the two fields is set. `deleted_username` (not a bare
-    string return value) marks a signature-valid token whose user no longer
-    exists, so callers can't mistake it for a live UserResponse.
+    For REVOKED, `dbuser` is deliberately left unset even though the user
+    still exists in the DB: the link may be held by someone other than the
+    account owner, so real account data (traffic, expiry, status) must never
+    reach the response for a revoked link. Only `username` (from the token)
+    is available in that case, same as DELETED.
     """
+    state: SubState = SubState.LIVE
     dbuser: Optional[UserResponse] = None
-    deleted_username: Optional[str] = None
+    username: Optional[str] = None
 
 
-def get_sub_or_deleted(
+def get_resolved_sub(
         token: str,
         db: Session = Depends(get_db)
-) -> SubOrDeleted:
-    """Like get_validated_sub, but when DELETED_SUB_ENABLED is on and both
-    DELETED_SUB_LINK/DELETED_SUB_TITLES are set, a signature-valid token for
-    a user who no longer exists resolves to a "deleted" marker instead of
-    404, so the caller can serve a stub subscription. A revoked token for a
-    still-existing user still 404s - the link is compromised, not stale.
+) -> ResolvedSub:
+    """Like get_validated_sub, but resolves to an explicit state instead of
+    404ing outright, so the caller can serve a stub subscription:
 
-    Both DELETED_SUB_LINK and DELETED_SUB_TITLES are required (not just the
-    enabled flag) so an incomplete config falls back to 404 instead of
-    silently serving an empty stub subscription.
+    - DELETED: signature-valid token whose user no longer exists (or was
+      recreated after the token was issued). Requires DELETED_SUB_ENABLED
+      and both DELETED_SUB_LINK/DELETED_SUB_TITLES to be set, otherwise
+      falls back to 404 - an incomplete config must not silently serve an
+      empty stub subscription.
+    - REVOKED: user still exists, but this specific link was revoked
+      (sub_revoked_at is after the token's issue time). Checked only once
+      DELETED is ruled out - deletion always wins. Revocation also takes
+      priority over the user's own status (e.g. expired/limited): a revoked
+      link says something more specific about *this link* than the
+      account's overall state does. Requires REVOKED_SUB_ENABLED and both
+      REVOKED_SUB_LINK/REVOKED_SUB_TITLES, same as DELETED.
+    - LIVE: token is current for an existing, non-revoked user.
     """
     sub, dbuser = _resolve_sub_token(token, db)
 
     if not dbuser or dbuser.created_at > sub['created_at']:
         if DELETED_SUB_ENABLED and DELETED_SUB_LINK and DELETED_SUB_TITLES:
-            return SubOrDeleted(deleted_username=sub['username'])
+            return ResolvedSub(state=SubState.DELETED, username=sub['username'])
         raise HTTPException(status_code=404, detail="Not Found")
 
     if dbuser.sub_revoked_at and dbuser.sub_revoked_at > sub['created_at']:
+        if REVOKED_SUB_ENABLED and REVOKED_SUB_LINK and REVOKED_SUB_TITLES:
+            return ResolvedSub(state=SubState.REVOKED, username=sub['username'])
         raise HTTPException(status_code=404, detail="Not Found")
 
-    return SubOrDeleted(dbuser=dbuser)
+    return ResolvedSub(state=SubState.LIVE, dbuser=dbuser)
 
 
 def get_validated_user(

@@ -160,6 +160,14 @@ DELETED_SUB_SUPPORT_URL = config("DELETED_SUB_SUPPORT_URL", default="")
 DELETED_SUB_UPDATE_INTERVAL = config("DELETED_SUB_UPDATE_INTERVAL", default="12")
 DELETED_SUB_ANNOUNCE = config("DELETED_SUB_ANNOUNCE", default="")
 
+# stub subscription for a signature-valid token that was revoked (user still exists)
+REVOKED_SUB_ENABLED = config("REVOKED_SUB_ENABLED", cast=bool, default=False)
+REVOKED_SUB_LINK = config("REVOKED_SUB_LINK", default="")
+REVOKED_SUB_TITLES = config("REVOKED_SUB_TITLES", default="")
+REVOKED_SUB_SUPPORT_URL = config("REVOKED_SUB_SUPPORT_URL", default="")
+REVOKED_SUB_UPDATE_INTERVAL = config("REVOKED_SUB_UPDATE_INTERVAL", default="12")
+REVOKED_SUB_ANNOUNCE = config("REVOKED_SUB_ANNOUNCE", default="")
+
 # extra links appended to the end of v2ray-format subscriptions for active users
 EXTRA_SUB_ENABLED = config("EXTRA_SUB_ENABLED", cast=bool, default=False)
 EXTRA_SUB_LINKS = config("EXTRA_SUB_LINKS", default="")
