@@ -753,6 +753,27 @@ export const UserDialog: FC<UserDialogProps> = () => {
                         </FormControl>
                       )}
 
+                      {isEditing && editingUser?.sub_updated_at && (
+                        <FormControl mb={"10px"}>
+                          <FormLabel>{t("userDialog.subUpdatedAt")}</FormLabel>
+                          <Text
+                            fontSize="sm"
+                            color="gray.600"
+                            _dark={{ color: "gray.400" }}
+                            p={2}
+                            borderWidth="1px"
+                            borderRadius="6px"
+                            borderColor="inherit"
+                            wordBreak="break-all"
+                          >
+                            {dayjs
+                              .utc(editingUser.sub_updated_at)
+                              .local()
+                              .format("DD.MM.YYYY HH:mm")}
+                          </Text>
+                        </FormControl>
+                      )}
+
                     </Flex>
                     {error && (
                       <Alert

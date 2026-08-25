@@ -159,6 +159,7 @@
   "userDialog.months": "月",
   "userDialog.note": "备注",
   "userDialog.lastClient": "最后使用客户端",
+  "userDialog.subUpdatedAt": "订阅更新时间",
   "userDialog.onHold": "保持",
   "userDialog.onHoldExpireDuration": "过期时间",
   "userDialog.optional": "可以为空",

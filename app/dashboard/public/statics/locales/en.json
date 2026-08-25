@@ -159,6 +159,7 @@
   "userDialog.months": "Months",
   "userDialog.note": "Note",
   "userDialog.lastClient": "Last client",
+  "userDialog.subUpdatedAt": "Subscription updated",
   "userDialog.onHold": "On Hold",
   "userDialog.onHoldExpireDuration": "Expire Duration",
   "userDialog.optional": "optional",

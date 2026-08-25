@@ -159,6 +159,7 @@
   "userDialog.months": "Месяцы",
   "userDialog.note": "Примечание",
   "userDialog.lastClient": "Последний клиент",
+  "userDialog.subUpdatedAt": "Подписка обновлена",
   "userDialog.onHold": "В режиме ожидания",
   "userDialog.onHoldExpireDuration": "Продолжительность срока действия",
   "userDialog.optional": "необязательно",
