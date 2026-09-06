@@ -1102,3 +1102,76 @@ class V2rayJsonConfig(str):
             outbound["mux"]["enabled"] = True
 
         self.add_config(remarks=remark, outbounds=outbounds)
+
+    def add_parsed_link(self, parsed: dict, fragment: str = "", noises: str = "") -> None:
+        """Add one already-parsed EXTRA_SUB_LINKS entry (see
+        app.subscription.link_parser.parse_share_link) as a full outbound,
+        appended as its own config after the user's own configs. Reuses the
+        same builders as `add()` so a v2ray-json client (Happ, Streisand,
+        v2rayNG) gets a real, connectable proxy for it - that format can't
+        carry a raw share link the way the plain v2ray format can.
+        """
+        protocol = parsed.get("protocol")
+        address = parsed["address"]
+        port = parsed["port"]
+        credential = parsed["credential"]
+        remark = parsed.get("remark") or address
+        params = parsed.get("params") or {}
+
+        if protocol == "vless":
+            net = params.get("type") or "tcp"
+            tls = params.get("security") or "none"
+            flow = params.get("flow", "") if (tls in ("tls", "reality") and net in ("tcp", "raw")) else ""
+
+            outbound = {
+                "tag": "proxy",
+                "protocol": "vless",
+                "settings": self.vless_config(address=address, port=port, id=credential, flow=flow),
+            }
+
+            alpn = params.get("alpn")
+            outbound["streamSettings"] = self.make_stream_setting(
+                net=net,
+                path=params.get("path", ""),
+                host=params.get("host", ""),
+                tls=tls,
+                sni=params.get("sni", ""),
+                fp=params.get("fp", ""),
+                alpn=alpn.split(",") if alpn else None,
+                pbk=params.get("pbk", ""),
+                sid=params.get("sid", ""),
+                spx=params.get("spx", ""),
+                mode=params.get("mode", "auto"),
+            )
+
+        elif protocol == "hysteria2":
+            ais = params.get("insecure") in ("1", "true", "True")
+            outbound = {
+                "tag": "proxy",
+                "protocol": "hysteria",
+                "settings": {
+                    "version": 2,
+                    "address": address,
+                    "port": port,
+                },
+                "streamSettings": self.stream_setting_config(
+                    network="hysteria",
+                    security="tls",
+                    tls_settings=self.tls_config(sni=params.get("sni") or None, ais=ais),
+                ),
+            }
+            outbound["streamSettings"]["hysteriaSettings"] = {
+                "version": 2,
+                "auth": credential,
+            }
+
+        else:
+            return
+
+        outbounds = [outbound]
+        extra_outbound = self.make_dialer_outbound(fragment, noises)
+        if extra_outbound:
+            outbound["streamSettings"]["sockopt"] = {"dialerProxy": extra_outbound["tag"]}
+            outbounds.append(extra_outbound)
+
+        self.add_config(remarks=remark, outbounds=outbounds)

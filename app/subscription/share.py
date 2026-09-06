@@ -1,4 +1,5 @@
 import base64
+import logging
 import random
 import secrets
 from collections import defaultdict
@@ -9,9 +10,12 @@ from typing import TYPE_CHECKING, List, Literal, Union
 from jdatetime import date as jd
 
 from app import xray
+from app.subscription.link_parser import parse_share_link
 from app.utils.system import get_public_ip, get_public_ipv6, readable_size
 
 from . import *
+
+logger = logging.getLogger("uvicorn.error")
 
 if TYPE_CHECKING:
     from app.models.user import UserResponse
@@ -86,15 +90,46 @@ def generate_outline_subscription(
     )
 
 
+def _get_extra_links_dialer_settings(inbounds: dict) -> tuple:
+    """Fragment/noise settings applied to EXTRA_SUB_LINKS entries added to the
+    v2ray-json output: reuses whichever of the user's own inbound hosts has
+    fragment/noise configured, so a client-side dialer trick (e.g. for Happ)
+    that's needed to reach the server also applies to the extra links, not
+    just to the user's real configs.
+    """
+    tags = [tag for _protocol, protocol_tags in inbounds.items() for tag in protocol_tags]
+    index_dict = {proxy: index for index, proxy in enumerate(xray.config.inbounds_by_tag.keys())}
+    for tag in sorted(tags, key=lambda t: index_dict.get(t, float('inf'))):
+        for host in xray.hosts.get(tag, []):
+            fragment = host.get("fragment_setting") or ""
+            noise = host.get("noise_setting") or ""
+            if fragment or noise:
+                return fragment, noise
+    return "", ""
+
+
 def generate_v2ray_json_subscription(
         proxies: dict, inbounds: dict, extra_data: dict, reverse: bool,
+        extra_links: list = None,
 ) -> str:
     conf = V2rayJsonConfig()
 
     format_variables = setup_format_variables(extra_data)
-    return process_inbounds_and_tags(
+    process_inbounds_and_tags(
         inbounds, proxies, format_variables, conf=conf, reverse=reverse
     )
+
+    if extra_links:
+        fragment, noises = _get_extra_links_dialer_settings(inbounds)
+        for link in extra_links:
+            parsed = parse_share_link(link)
+            if parsed:
+                conf.add_parsed_link(parsed, fragment=fragment, noises=noises)
+
+    # process_inbounds_and_tags() already rendered (and, if reverse, already
+    # reversed self.config) above; render again with reverse=False so the
+    # extra links just appended land at the very end regardless of reverse.
+    return conf.render(reverse=False)
 
 
 def generate_subscription(
@@ -102,6 +137,7 @@ def generate_subscription(
         config_format: Literal["v2ray", "clash-meta", "clash", "sing-box", "outline", "v2ray-json"],
         as_base64: bool,
         reverse: bool,
+        extra_links: list = None,
 ) -> str:
     kwargs = {
         "proxies": user.proxies,
@@ -121,7 +157,7 @@ def generate_subscription(
     elif config_format == "outline":
         config = generate_outline_subscription(**kwargs)
     elif config_format == "v2ray-json":
-        config = generate_v2ray_json_subscription(**kwargs)
+        config = generate_v2ray_json_subscription(**kwargs, extra_links=extra_links)
     else:
         raise ValueError(f'Unsupported format "{config_format}"')
 

@@ -255,7 +255,7 @@ def user_subscription(
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYN) and re.match(r'^v2rayN/(\d+\.\d+)', user_agent):
         version_str = re.match(r'^v2rayN/(\d+\.\d+)', user_agent).group(1)
         if LooseVersion(version_str) >= LooseVersion("6.40"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
+            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
             return build_v2ray_response(user, response_headers, extra_links)
@@ -263,17 +263,17 @@ def user_subscription(
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYNG) and re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent):
         version_str = re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent).group(1)
         if LooseVersion(version_str) >= LooseVersion("1.8.29"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
+            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         elif LooseVersion(version_str) >= LooseVersion("1.8.18"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=True)
+            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=True, extra_links=extra_links)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
             return build_v2ray_response(user, response_headers, extra_links)
 
     elif re.match(r'^[Ss]treisand', user_agent):
         if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_STREISAND:
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
+            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
             return build_v2ray_response(user, response_headers, extra_links)
@@ -281,7 +281,7 @@ def user_subscription(
     elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_HAPP) and re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent):
         version_str = re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent).group(1)
         if LooseVersion(version_str) >= LooseVersion("1.63.1"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False)
+            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
             return build_v2ray_response(user, response_headers, extra_links)
@@ -341,6 +341,7 @@ def user_subscription_with_client_type(
     conf = generate_subscription(user=user,
                                  config_format=config["config_format"],
                                  as_base64=config["as_base64"],
-                                 reverse=config["reverse"])
+                                 reverse=config["reverse"],
+                                 extra_links=get_extra_sub_links(user) if client_type == "v2ray-json" else None)
 
     return Response(content=conf, media_type=config["media_type"], headers=response_headers)
