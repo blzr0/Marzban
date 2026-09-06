@@ -176,6 +176,7 @@
   "userDialog.resetUsage": "Сбросить трафик",
   "userDialog.revokeSubscription": "Отозвать подписку",
   "userDialog.selectOneProtocol": "Пожалуйста, выберите хотя бы один протокол",
+  "userDialog.hysteria2Desc": "На основе QUIC, быстрый и устойчивый к цензуре, требует настоящий TLS-сертификат",
   "userDialog.shadowsocksDesc": "Быстрый и безопасный, но не такой эффективный, как другие",
   "userDialog.startDate": "Дата начала",
   "userDialog.total": "Всего: ",

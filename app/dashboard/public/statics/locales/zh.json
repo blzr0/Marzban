@@ -176,6 +176,7 @@
   "userDialog.resetUsage": "重置流量",
   "userDialog.revokeSubscription": "撤销订阅",
   "userDialog.selectOneProtocol": "请至少选择一个协议",
+  "userDialog.hysteria2Desc": "基于 QUIC,快速且抗审查,需要真实的 TLS 证书",
   "userDialog.shadowsocksDesc": "快速且安全, 但效率不如其它",
   "userDialog.startDate": "开始日期",
   "userDialog.total": "总共：",

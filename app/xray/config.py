@@ -142,7 +142,13 @@ class XRayConfig(dict):
 
     def _resolve_inbounds(self):
         for inbound in self['inbounds']:
-            if not inbound['protocol'] in ProxyTypes._value2member_map_:
+            # Xray's own protocol name is "hysteria" (settings.version == 2);
+            # the panel's proxy type is "hysteria2" - map it here so it's
+            # treated as a known proxy type everywhere below (inbounds_by_tag,
+            # inbounds_by_protocol, host settings, subscriptions, etc.).
+            proxy_protocol = 'hysteria2' if inbound['protocol'] == 'hysteria' else inbound['protocol']
+
+            if proxy_protocol not in ProxyTypes._value2member_map_:
                 continue
 
             if inbound['tag'] in XRAY_EXCLUDE_INBOUND_TAGS:
@@ -155,7 +161,7 @@ class XRayConfig(dict):
 
             settings = {
                 "tag": inbound["tag"],
-                "protocol": inbound["protocol"],
+                "protocol": proxy_protocol,
                 "port": None,
                 "network": "tcp",
                 "tls": 'none',
@@ -330,6 +336,11 @@ class XRayConfig(dict):
                     settings['host'] = net_settings.get('host') or net_settings.get('Host', '')
                     settings['path'] = net_settings.get('path', '')
 
+                elif net == 'hysteria':
+                    # QUIC-based, no path/host/header concept - port/tls/sni
+                    # are already handled generically above.
+                    settings['header_type'] = ''
+
                 else:
                     settings['path'] = net_settings.get('path', '')
                     host = net_settings.get(
@@ -343,9 +354,9 @@ class XRayConfig(dict):
             self.inbounds_by_tag[inbound['tag']] = settings
 
             try:
-                self.inbounds_by_protocol[inbound['protocol']].append(settings)
+                self.inbounds_by_protocol[proxy_protocol].append(settings)
             except KeyError:
-                self.inbounds_by_protocol[inbound['protocol']] = [settings]
+                self.inbounds_by_protocol[proxy_protocol] = [settings]
 
     def get_inbound(self, tag) -> dict:
         for inbound in self['inbounds']:
@@ -417,6 +428,11 @@ class XRayConfig(dict):
                             "email": f"{user_id}.{username}",
                             **settings
                         }
+
+                        if proxy_type == ProxyTypes.Hysteria2.value and "password" in client:
+                            # Xray's hysteria client config field is "auth",
+                            # not "password" (unlike trojan/shadowsocks).
+                            client["auth"] = client.pop("password")
 
                         # XTLS currently only supports transmission methods of TCP and mKCP
                         if client.get('flow') and (

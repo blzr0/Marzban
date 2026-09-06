@@ -254,6 +254,10 @@ class ClashConfiguration(object):
         return node
 
     def add(self, remark: str, address: str, inbound: dict, settings: dict):
+        # not supported by plain clash (only clash-meta/mihomo has hysteria2)
+        if inbound['protocol'] == 'hysteria2':
+            return
+
         # not supported by clash
         if inbound['network'] in ("kcp", "splithttp", "xhttp"):
             return
@@ -345,6 +349,27 @@ class ClashMetaConfiguration(ClashConfiguration):
         return node
 
     def add(self, remark: str, address: str, inbound: dict, settings: dict):
+        if inbound['protocol'] == 'hysteria2':
+            # Entirely different (flat, non-transport-based) node shape from
+            # the vmess/vless/trojan/shadowsocks ones make_node() builds, so
+            # it's built directly here instead.
+            proxy_remark = self._remark_validation(remark)
+            node = {
+                'name': proxy_remark,
+                'type': 'hysteria2',
+                'server': address,
+                'port': inbound['port'],
+                'password': settings['password'],
+            }
+            if inbound.get('sni'):
+                node['sni'] = inbound['sni']
+            if inbound.get('ais'):
+                node['skip-cert-verify'] = True
+
+            self.data['proxies'].append(node)
+            self.proxy_remarks.append(proxy_remark)
+            return
+
         # not supported by clash-meta
         if inbound['network'] in ("kcp", "splithttp", "xhttp") or (inbound['network'] == "quic" and inbound["header_type"] != "none"):
             return

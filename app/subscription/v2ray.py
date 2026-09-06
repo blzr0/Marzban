@@ -158,6 +158,16 @@ class V2rayShareLink(str):
                 password=settings["password"],
                 method=settings["method"],
             )
+
+        elif inbound["protocol"] == "hysteria2":
+            link = self.hysteria2(
+                remark=remark,
+                address=address,
+                port=inbound["port"],
+                password=settings["password"],
+                sni=inbound.get("sni", ""),
+                ais=bool(inbound.get("ais")),
+            )
         else:
             return
 
@@ -497,6 +507,25 @@ class V2rayShareLink(str):
             "ss://"
             + base64.b64encode(f"{method}:{password}".encode()).decode()
             + f"@{address}:{port}#{urlparse.quote(remark)}"
+        )
+
+    @classmethod
+    def hysteria2(cls, remark: str, address: str, port: int, password: str, sni: str = "", ais: bool = False):
+        """Inverse of app.subscription.link_parser.parse_share_link() for
+        hysteria2 - what this generates must stay parseable by that function.
+        """
+        query = {}
+        if sni:
+            query["sni"] = sni
+        if ais:
+            query["insecure"] = "1"
+        query_string = f"?{urlparse.urlencode(query)}" if query else ""
+
+        return (
+            "hysteria2://"
+            + f"{urlparse.quote(password, safe='')}@{address}:{port}"
+            + query_string
+            + f"#{urlparse.quote(remark)}"
         )
 
 
@@ -1005,6 +1034,39 @@ class V2rayJsonConfig(str):
                                           tls_settings=tls_settings,
                                           sockopt=sockopt)
 
+    @staticmethod
+    def hysteria2_outbound(address=None, port=None, auth=None, sni=None, ais=False) -> dict:
+        """Full outbound for a hysteria2 proxy - shared by add() (the user's
+        own inbound) and add_parsed_link() (EXTRA_SUB_LINKS entries).
+
+        Unlike vless/vmess/trojan/shadowsocks, hysteria2's credential lives in
+        streamSettings.hysteriaSettings.auth rather than outbound.settings, so
+        it can't reuse make_stream_setting()'s generic per-network dispatch.
+        TLS (serverName/allowInsecure/fingerprint/alpn) is still the regular
+        security:"tls" block - hysteria gets it via Xray's shared
+        tls.ConfigFromStreamSettings(), same as any other transport.
+        """
+        return {
+            "tag": "proxy",
+            "protocol": "hysteria",
+            "settings": {
+                "version": 2,
+                "address": address,
+                "port": port,
+            },
+            "streamSettings": {
+                **V2rayJsonConfig.stream_setting_config(
+                    network="hysteria",
+                    security="tls",
+                    tls_settings=V2rayJsonConfig.tls_config(sni=sni or None, ais=ais),
+                ),
+                "hysteriaSettings": {
+                    "version": 2,
+                    "auth": auth,
+                },
+            },
+        }
+
     def add(self, remark: str, address: str, inbound: dict, settings: dict):
 
         net = inbound['network']
@@ -1013,6 +1075,22 @@ class V2rayJsonConfig(str):
         if isinstance(port, str):
             ports = port.split(',')
             port = int(choice(ports))
+
+        if protocol == 'hysteria2':
+            # Credential lives in streamSettings.hysteriaSettings.auth, not
+            # outbound.settings like vless/vmess/trojan/shadowsocks, so this
+            # can't reuse make_stream_setting()'s generic per-network
+            # dispatch below - build it directly instead. No dialer/fragment/
+            # noise here either: those are TCP-only tricks, hysteria2 is QUIC/UDP.
+            outbound = self.hysteria2_outbound(
+                address=address,
+                port=port,
+                auth=settings['password'],
+                sni=inbound.get('sni'),
+                ais=bool(inbound.get('ais')),
+            )
+            self.add_config(remarks=remark, outbounds=[outbound])
+            return
 
         tls = (inbound['tls'])
         headers = inbound['header_type']
@@ -1152,25 +1230,13 @@ class V2rayJsonConfig(str):
             )
 
         elif protocol == "hysteria2":
-            ais = params.get("insecure") in ("1", "true", "True")
-            outbound = {
-                "tag": "proxy",
-                "protocol": "hysteria",
-                "settings": {
-                    "version": 2,
-                    "address": address,
-                    "port": port,
-                },
-                "streamSettings": self.stream_setting_config(
-                    network="hysteria",
-                    security="tls",
-                    tls_settings=self.tls_config(sni=params.get("sni") or None, ais=ais),
-                ),
-            }
-            outbound["streamSettings"]["hysteriaSettings"] = {
-                "version": 2,
-                "auth": credential,
-            }
+            outbound = self.hysteria2_outbound(
+                address=address,
+                port=port,
+                auth=credential,
+                sni=params.get("sni"),
+                ais=params.get("insecure") in ("1", "true", "True"),
+            )
 
         else:
             return

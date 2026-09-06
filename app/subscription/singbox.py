@@ -49,10 +49,10 @@ class SingBoxConfiguration(str):
         self.config["outbounds"].append(outbound_data)
 
     def render(self, reverse=False):
-        urltest_types = ["vmess", "vless", "trojan", "shadowsocks"]
+        urltest_types = ["vmess", "vless", "trojan", "shadowsocks", "hysteria2"]
         urltest_tags = [outbound["tag"]
                         for outbound in self.config["outbounds"] if outbound["type"] in urltest_types]
-        selector_types = ["vmess", "vless", "trojan", "shadowsocks", "urltest"]
+        selector_types = ["vmess", "vless", "trojan", "shadowsocks", "hysteria2", "urltest"]
         selector_tags = [outbound["tag"]
                          for outbound in self.config["outbounds"] if outbound["type"] in selector_types]
 
@@ -287,6 +287,25 @@ class SingBoxConfiguration(str):
 
         net = inbound["network"]
         path = inbound["path"]
+
+        if inbound['protocol'] == 'hysteria2':
+            # Native sing-box type, no transport/network concept to route
+            # through make_outbound() - built directly instead.
+            remark = self._remark_validation(remark)
+            self.proxy_remarks.append(remark)
+            self.add_outbound({
+                "type": "hysteria2",
+                "tag": remark,
+                "server": address,
+                "server_port": inbound['port'],
+                "password": settings['password'],
+                "tls": {
+                    "enabled": True,
+                    "server_name": inbound.get('sni') or "",
+                    "insecure": bool(inbound.get('ais')),
+                },
+            })
+            return
 
         # not supported by sing-box
         if net in ("kcp", "splithttp", "xhttp") or (net == "quic" and inbound["header_type"] != "none"):
