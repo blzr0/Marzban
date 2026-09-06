@@ -165,6 +165,15 @@ const baseSchema = {
       deleteIfEmpty(ins.shadowsocks, "method");
       deleteIfEmpty(ins.hysteria2, "password");
       return ins;
+    })
+    .superRefine((ins, ctx) => {
+      if (ins.hysteria2?.password && /\s/.test(ins.hysteria2.password)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "userDialog.hysteria2PasswordInvalid",
+          path: ["hysteria2", "password"],
+        });
+      }
     }),
   data_limit: z
     .string()

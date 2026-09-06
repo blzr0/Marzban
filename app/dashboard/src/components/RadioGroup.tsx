@@ -8,6 +8,7 @@ import {
   chakra,
   Checkbox,
   FormControl,
+  FormErrorMessage,
   HStack,
   IconButton,
   Input,
@@ -65,6 +66,7 @@ const InboundCard: FC<
         display="flex"
         alignItems="center"
         justifyContent="space-between"
+        gap={2}
         overflow="hidden"
         _checked={{
           bg: "gray.50",
@@ -87,15 +89,16 @@ const InboundCard: FC<
           },
         }}
         textTransform="capitalize"
-        px={3}
+        pl={3}
+        pr={2}
         py={2}
         fontWeight="medium"
         {...getCheckboxProps()}
       >
         <Checkbox
           size="sm"
-          w="full"
-          maxW="full"
+          flex="1"
+          minW={0}
           color="gray.700"
           _dark={{ color: "gray.300" }}
           textTransform="uppercase"
@@ -103,23 +106,20 @@ const InboundCard: FC<
           className="inbound-item"
           isChecked={inputProps.checked}
           pointerEvents="none"
-          flexGrow={1}
         >
-          <HStack
-            justify="space-between"
-            w="full"
-            maxW="calc(100% - 20px)"
-            spacing={0}
-            gap={2}
-            overflow="hidden"
-          >
-            <Text isTruncated {...getLabelProps()} fontSize="xs">
+          <HStack spacing={0} gap={2} overflow="hidden" minW={0}>
+            <Text
+              isTruncated
+              {...getLabelProps()}
+              fontSize="xs"
+              title={inbound.tag}
+            >
               {inbound.tag} <Text as="span">({inbound.network})</Text>
             </Text>
           </HStack>
         </Checkbox>
         {inbound.tls && inbound.tls != "none" && (
-          <Badge fontSize="xs" opacity=".8" size="xs">
+          <Badge fontSize="xs" opacity=".8" size="xs" flexShrink={0}>
             {inbound.tls}
           </Badge>
         )}
@@ -445,6 +445,36 @@ const RadioCard: FC<
                     </option>
                   ))}
                 </Select>
+              </FormControl>
+            </VStack>
+          )}
+          {title === "hysteria2" && isSelected && (
+            <VStack alignItems="flex-start" w="full">
+              <FormControl
+                height="66px"
+                isInvalid={
+                  !!(form.formState.errors.proxies as any)?.hysteria2
+                    ?.password
+                }
+              >
+                <Text fontSize="sm" pb={1}>
+                  {t("password")}
+                </Text>
+                <Input
+                  fontSize="xs"
+                  size="sm"
+                  borderRadius="6px"
+                  pl={2}
+                  pr={2}
+                  placeholder={t("userDialog.generatedByDefault")}
+                  {...form.register("proxies.hysteria2.password")}
+                />
+                <FormErrorMessage>
+                  {t(
+                    (form.formState.errors.proxies as any)?.hysteria2
+                      ?.password?.message as string
+                  )}
+                </FormErrorMessage>
               </FormControl>
             </VStack>
           )}

@@ -177,6 +177,7 @@
   "userDialog.revokeSubscription": "Revoke Subscription",
   "userDialog.selectOneProtocol": "Please select at least one protocol",
   "userDialog.hysteria2Desc": "QUIC-based, fast and censorship-resistant, needs a real TLS certificate",
+  "userDialog.hysteria2PasswordInvalid": "Password cannot be empty or contain spaces",
   "userDialog.shadowsocksDesc": "Fast and secure, but not efficient as others",
   "userDialog.startDate": "Start date",
   "userDialog.total": "Total: ",

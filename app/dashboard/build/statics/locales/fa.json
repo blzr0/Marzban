@@ -183,6 +183,7 @@
   "userDialog.revokeSubscription": "بازنشانی اشتراک",
   "userDialog.selectOneProtocol": "لطفا حداقل یک پروتکل انتخاب کنید",
   "userDialog.hysteria2Desc": "مبتنی بر QUIC، سریع و مقاوم در برابر سانسور، به گواهی TLS واقعی نیاز دارد",
+  "userDialog.hysteria2PasswordInvalid": "رمز عبور نمی‌تواند خالی باشد یا شامل فاصله باشد",
   "userDialog.shadowsocksDesc": "سریع و امن، اما کارآمد کمتر از بقیه",
   "userDialog.startDate": "تاریخ شروع",
   "userDialog.total": "مجموع: ",
