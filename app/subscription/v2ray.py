@@ -504,6 +504,7 @@ class V2rayJsonConfig(str):
 
     def __init__(self):
         self.config = []
+        self.username = ""
         self.template = render_template(V2RAY_SUBSCRIPTION_TEMPLATE)
         self.mux_template = render_template(MUX_TEMPLATE)
         user_agent_data = json.loads(render_template(USER_AGENT_TEMPLATE))
@@ -809,7 +810,7 @@ class V2rayJsonConfig(str):
         return streamSettings
 
     @staticmethod
-    def vmess_config(address=None, port=None, id=None) -> dict:
+    def vmess_config(address=None, port=None, id=None, email="user") -> dict:
         return {
             "vnext": [
                 {
@@ -819,7 +820,7 @@ class V2rayJsonConfig(str):
                         {
                             "id": id,
                             "alterId": 0,
-                            "email": "https://github.com/blzr0/Marzban",
+                            "email": email,
                             "security": "auto"
                         }
                     ],
@@ -828,7 +829,7 @@ class V2rayJsonConfig(str):
         }
 
     @staticmethod
-    def vless_config(address=None, port=None, id=None, flow="") -> dict:
+    def vless_config(address=None, port=None, id=None, flow="", email="user") -> dict:
         return {
             "vnext": [
                 {
@@ -839,7 +840,7 @@ class V2rayJsonConfig(str):
                             "id": id,
                             "security": "auto",
                             "encryption": "none",
-                            "email": "https://github.com/blzr0/Marzban",
+                            "email": email,
                             "alterId": 0,
                             "flow": flow
                         }
@@ -849,27 +850,27 @@ class V2rayJsonConfig(str):
         }
 
     @staticmethod
-    def trojan_config(address=None, port=None, password=None) -> dict:
+    def trojan_config(address=None, port=None, password=None, email="user") -> dict:
         return {
             "servers": [
                 {
                     "address": address,
                     "port": port,
                     "password": password,
-                    "email": "https://github.com/blzr0/Marzban",
+                    "email": email,
                 }
             ]
         }
 
     @staticmethod
-    def shadowsocks_config(address=None, port=None, password=None, method=None) -> dict:
+    def shadowsocks_config(address=None, port=None, password=None, method=None, email="user") -> dict:
         return {
             "servers": [
                 {
                     "address": address,
                     "port": port,
                     "password": password,
-                    "email": "https://github.com/blzr0/Marzban",
+                    "email": email,
                     "method": method,
                     "uot": False,
                 }
@@ -1031,10 +1032,13 @@ class V2rayJsonConfig(str):
             "protocol": protocol
         }
 
+        email = self.username or "user"
+
         if inbound['protocol'] == 'vmess':
             outbound["settings"] = self.vmess_config(address=address,
                                                      port=port,
-                                                     id=settings['id'])
+                                                     id=settings['id'],
+                                                     email=email)
 
         elif inbound['protocol'] == 'vless':
             if net in ('tcp', 'raw', 'kcp') and headers != 'http' and tls in ('tls', 'reality'):
@@ -1045,18 +1049,21 @@ class V2rayJsonConfig(str):
             outbound["settings"] = self.vless_config(address=address,
                                                      port=port,
                                                      id=settings['id'],
-                                                     flow=flow)
+                                                     flow=flow,
+                                                     email=email)
 
         elif inbound['protocol'] == 'trojan':
             outbound["settings"] = self.trojan_config(address=address,
                                                       port=port,
-                                                      password=settings['password'])
+                                                      password=settings['password'],
+                                                      email=email)
 
         elif inbound['protocol'] == 'shadowsocks':
             outbound["settings"] = self.shadowsocks_config(address=address,
                                                            port=port,
                                                            password=settings['password'],
-                                                           method=settings['method'])
+                                                           method=settings['method'],
+                                                           email=email)
 
         outbounds = [outbound]
         dialer_proxy = ''
