@@ -365,6 +365,9 @@ class ClashMetaConfiguration(ClashConfiguration):
                 node['sni'] = inbound['sni']
             if inbound.get('ais'):
                 node['skip-cert-verify'] = True
+            if inbound.get('obfs_password'):
+                node['obfs'] = 'salamander'
+                node['obfs-password'] = inbound['obfs_password']
 
             self.data['proxies'].append(node)
             self.proxy_remarks.append(proxy_remark)

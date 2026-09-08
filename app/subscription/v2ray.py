@@ -167,6 +167,7 @@ class V2rayShareLink(str):
                 password=settings["password"],
                 sni=inbound.get("sni", ""),
                 ais=bool(inbound.get("ais")),
+                obfs_password=inbound.get("obfs_password", ""),
             )
         else:
             return
@@ -510,15 +511,24 @@ class V2rayShareLink(str):
         )
 
     @classmethod
-    def hysteria2(cls, remark: str, address: str, port: int, password: str, sni: str = "", ais: bool = False):
+    def hysteria2(
+        cls, remark: str, address: str, port: int, password: str,
+        sni: str = "", ais: bool = False, obfs_password: str = "",
+    ):
         """Inverse of app.subscription.link_parser.parse_share_link() for
-        hysteria2 - what this generates must stay parseable by that function.
+        hysteria2 - what this generates must stay parseable by that function,
+        except for obfs_password: link_parser rejects obfs links outright
+        (see its comment), since EXTRA_SUB_LINKS obfs support isn't
+        implemented yet, but the panel's own inbound can still use obfs.
         """
         query = {}
         if sni:
             query["sni"] = sni
         if ais:
             query["insecure"] = "1"
+        if obfs_password:
+            query["obfs"] = "salamander"
+            query["obfs-password"] = obfs_password
         query_string = f"?{urlparse.urlencode(query)}" if query else ""
 
         return (
@@ -1035,7 +1045,7 @@ class V2rayJsonConfig(str):
                                           sockopt=sockopt)
 
     @staticmethod
-    def hysteria2_outbound(address=None, port=None, auth=None, sni=None, ais=False) -> dict:
+    def hysteria2_outbound(address=None, port=None, auth=None, sni=None, ais=False, obfs_password=None) -> dict:
         """Full outbound for a hysteria2 proxy - shared by add() (the user's
         own inbound) and add_parsed_link() (EXTRA_SUB_LINKS entries).
 
@@ -1045,7 +1055,30 @@ class V2rayJsonConfig(str):
         TLS (serverName/allowInsecure/fingerprint/alpn) is still the regular
         security:"tls" block - hysteria gets it via Xray's shared
         tls.ConfigFromStreamSettings(), same as any other transport.
+
+        Salamander obfuscation is a separate Finalmask layer in Xray-core,
+        not a field of hysteriaSettings itself - see
+        streamSettings.finalmask.udp (transport/internet/finalmask, used by
+        both the hysteria inbound and its dialer for client-side wrapping).
         """
+        stream_settings = {
+            **V2rayJsonConfig.stream_setting_config(
+                network="hysteria",
+                security="tls",
+                tls_settings=V2rayJsonConfig.tls_config(sni=sni or None, ais=ais),
+            ),
+            "hysteriaSettings": {
+                "version": 2,
+                "auth": auth,
+            },
+        }
+        if obfs_password:
+            stream_settings["finalmask"] = {
+                "udp": [
+                    {"type": "salamander", "settings": {"password": obfs_password}},
+                ],
+            }
+
         return {
             "tag": "proxy",
             "protocol": "hysteria",
@@ -1054,17 +1087,7 @@ class V2rayJsonConfig(str):
                 "address": address,
                 "port": port,
             },
-            "streamSettings": {
-                **V2rayJsonConfig.stream_setting_config(
-                    network="hysteria",
-                    security="tls",
-                    tls_settings=V2rayJsonConfig.tls_config(sni=sni or None, ais=ais),
-                ),
-                "hysteriaSettings": {
-                    "version": 2,
-                    "auth": auth,
-                },
-            },
+            "streamSettings": stream_settings,
         }
 
     def add(self, remark: str, address: str, inbound: dict, settings: dict):
@@ -1088,6 +1111,7 @@ class V2rayJsonConfig(str):
                 auth=settings['password'],
                 sni=inbound.get('sni'),
                 ais=bool(inbound.get('ais')),
+                obfs_password=inbound.get('obfs_password'),
             )
             self.add_config(remarks=remark, outbounds=[outbound])
             return

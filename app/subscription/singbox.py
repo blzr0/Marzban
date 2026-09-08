@@ -293,7 +293,7 @@ class SingBoxConfiguration(str):
             # through make_outbound() - built directly instead.
             remark = self._remark_validation(remark)
             self.proxy_remarks.append(remark)
-            self.add_outbound({
+            outbound = {
                 "type": "hysteria2",
                 "tag": remark,
                 "server": address,
@@ -304,7 +304,13 @@ class SingBoxConfiguration(str):
                     "server_name": inbound.get('sni') or "",
                     "insecure": bool(inbound.get('ais')),
                 },
-            })
+            }
+            if inbound.get('obfs_password'):
+                outbound["obfs"] = {
+                    "type": "salamander",
+                    "password": inbound['obfs_password'],
+                }
+            self.add_outbound(outbound)
             return
 
         # not supported by sing-box

@@ -341,6 +341,16 @@ class XRayConfig(dict):
                     # are already handled generically above.
                     settings['header_type'] = ''
 
+                    # Salamander obfuscation isn't a hysteriaSettings field -
+                    # it's a separate Finalmask UDP mask
+                    # (streamSettings.finalmask.udp[]), shared with other
+                    # transports. Only "salamander" is understood by real
+                    # hysteria2 clients, so that's the only type propagated.
+                    for mask in stream.get('finalmask', {}).get('udp', []) or []:
+                        if mask.get('type') == 'salamander':
+                            settings['obfs_password'] = mask.get('settings', {}).get('password', '')
+                            break
+
                 else:
                     settings['path'] = net_settings.get('path', '')
                     host = net_settings.get(
