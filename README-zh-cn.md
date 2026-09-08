@@ -66,6 +66,8 @@
     - [特性](#特性)
 - [安装指南](#安装指南)
 - [配置](#配置)
+  - [Hysteria2 支持](#hysteria2-支持)
+  - [Geo 文件（路由数据）](#geo-文件路由数据)
 - [文档](#文档)
 - [如何使用 API](#如何使用-api)
 - [如何备份 Marzban](#如何备份-marzban)
@@ -89,7 +91,7 @@ Marzban 是一个用户友好、功能丰富且可靠的工具。它让您可以
 
 - 内置 **Web 界面**
 - 完全支持 **REST API** 的后端
-- 支持 **Vmess**、**VLESS**、**Trojan** 和 **Shadowsocks** 协议
+- 支持 **Vmess**、**VLESS**、**Trojan**、**Shadowsocks** 和 **Hysteria2** 协议
 - 单用户的**多协议**支持
 - 单入站的**多用户**支持
 - 单端口的**多入站**支持（使用 fallbacks）
@@ -312,6 +314,8 @@ server {
 | USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                           |
 | USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                         |
 | USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                            |
+| USE_CUSTOM_JSON_FOR_HAPP                 | 仅为 Happ 启用自定义 JSON 配置（默认：`False`）                                                                                     |
+| USE_CUSTOM_JSON_FOR_INCY                 | 仅为 INCY 启用自定义 JSON 配置（默认：`False`）                                                                                     |
 | SUB_PROFILE_TITLE                        | 订阅 `profile-title` 头中使用的基础文本，显示在表情符号和用户名之前（默认：`Subscription`）                                  |
 | SUB_SUPPORT_URL                          | 在订阅 `support-url` 头中发送的支持链接（默认：`https://t.me/`）                                                            |
 | SUB_UPDATE_INTERVAL                      | 在 `profile-update-interval` 头中告知的订阅更新间隔，单位为小时（默认：`12`）                                                |
@@ -329,9 +333,55 @@ server {
 | DELETED_SUB_SUPPORT_URL                  | 展示给已删除用户的支持链接（未设置时回退为 `SUB_SUPPORT_URL`）                                                              |
 | DELETED_SUB_UPDATE_INTERVAL              | 向已删除用户展示的订阅更新间隔，单位为小时（默认：`12`）                                                                     |
 | DELETED_SUB_ANNOUNCE                     | 随占位订阅一起发送给已删除用户的公告头                                                                                      |
+| REVOKED_SUB_ENABLED                      | 为签名有效、但链接已被吊销的令牌（用户仍然存在）返回占位订阅而非真实配置（默认：`False`）                                     |
+| REVOKED_SUB_LINK                         | 用于生成吊销链接占位内容的链接（与 `REVOKED_SUB_TITLES` 一起为必填项，`REVOKED_SUB_ENABLED` 才会生效）                       |
+| REVOKED_SUB_TITLES                       | 以 `\|` 分隔的消息，展示给吊销链接以代替真实配置                                                                            |
+| REVOKED_SUB_SUPPORT_URL                  | 展示给吊销链接的支持链接（未设置时回退为 `SUB_SUPPORT_URL`）                                                                |
+| REVOKED_SUB_UPDATE_INTERVAL              | 向吊销链接展示的订阅更新间隔，单位为小时（默认：`12`）                                                                       |
+| REVOKED_SUB_ANNOUNCE                     | 随占位订阅一起发送给吊销链接的公告头                                                                                        |
 | EXTRA_SUB_ENABLED                        | 为活跃用户在 v2ray 格式订阅末尾追加额外链接（默认：`False`）                                                                 |
 | EXTRA_SUB_LINKS                          | 以 `\|` 分隔的链接，原样（已编码）追加到活跃用户订阅末尾                                                                     |
 | EXTRA_SUB_REQUIRED_INBOUND               | 以逗号分隔的入站标记，用户需拥有其中至少一个才能获得 `EXTRA_SUB_LINKS`；留空表示所有活跃用户都可获得                                |
+
+> `EXTRA_SUB_LINKS` 以及所有 `*_SUB_LINK`/`*_SUB_TITLES` 的值在 `.env` 中都必须用引号包裹，例如 `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`：不加引号的 `#` 会在 `.env` 中开始一行注释并截断该行其余内容，而分享链接通常包含 `#remark` 和 `&param=value`。
+>
+> `EXTRA_SUB_LINKS` 仅会追加到 **v2ray**（纯链接列表）和 **v2ray-json** 格式的订阅中，且仅针对状态为 `active` 的用户（不包括 `on_hold`/`expired`/`limited`/`disabled`）。Clash、Clash-Meta、sing-box 和 Outline 订阅永远不会包含这些链接，因为这些格式是由解析后的代理对象构建的，而不是原始链接。
+
+## Hysteria2 支持
+
+Marzban 可以管理原生的 **Hysteria2** 入站：每个用户的密码生成和轮换方式与其他协议相同。需要注意：
+
+- 需要具备原生 Hysteria2 支持的 Xray-core 版本；请使用较新的版本 —— 早期的 Hysteria2 实现与真实客户端之间存在 UDP/datagram 互通问题。
+- 只能配合真实的 TLS 证书使用 —— 该协议**不支持 REALITY**（因为它基于 QUIC，REALITY 的 TCP 握手伪装在这里不适用）。
+- 入站监听的是 **UDP** 而非 TCP —— 请相应地开放/转发端口。
+
+`xray_config.json` 的最小入站示例：
+
+```json
+{
+  "tag": "HYSTERIA2",
+  "listen": "0.0.0.0",
+  "port": 443,
+  "protocol": "hysteria",
+  "settings": { "version": 2, "clients": [] },
+  "streamSettings": {
+    "network": "hysteria",
+    "security": "tls",
+    "hysteriaSettings": { "version": 2 },
+    "tlsSettings": {
+      "certificates": [
+        { "certificateFile": "/var/lib/marzban/certs/fullchain.pem", "keyFile": "/var/lib/marzban/certs/key.pem" }
+      ]
+    }
+  }
+}
+```
+
+## Geo 文件（路由数据）
+
+此分支的 Docker 镜像在构建时会将 Xray 默认的 `geoip.dat`/`geosite.dat` 替换为 [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) 提供的文件（下载失败时会回退到 XTLS 官方文件），并安装到 `/usr/local/share/xray`。
+
+如果您使用 Marzban-node，请在每个节点上显式设置 `XRAY_ASSETS_PATH` —— 节点不会自动继承主面板的 Geo 文件，若不设置，节点将使用其自身镜像自带的文件。
 
 
 # 文档

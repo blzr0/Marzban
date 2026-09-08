@@ -60,6 +60,8 @@
     - [Features](#features)
 - [Installation guide](#installation-guide)
 - [Configuration](#configuration)
+  - [Hysteria2 support](#hysteria2-support)
+  - [Geo files (routing data)](#geo-files-routing-data)
 - [Documentation](#documentation)
 - [API](#api)
 - [Backup](#backup)
@@ -84,7 +86,7 @@ Marzban is user-friendly, feature-rich and reliable. It lets you to create diffe
 - Built-in **Web UI**
 - Fully **REST API** backend
 - [**Multiple Nodes**](#marzban-node) support (for infrastructure distribution & scalability)
-- Supports protocols **Vmess**, **VLESS**, **Trojan** and **Shadowsocks**
+- Supports protocols **Vmess**, **VLESS**, **Trojan**, **Shadowsocks** and **Hysteria2**
 - **Multi-protocol** for a single user
 - **Multi-user** on a single inbound
 - **Multi-inbound** on a **single port** (fallbacks support)
@@ -320,6 +322,8 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                            |
 | USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                          |
 | USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                             |
+| USE_CUSTOM_JSON_FOR_HAPP                 | Enable custom JSON config only for Happ (default: `False`)                                                               |
+| USE_CUSTOM_JSON_FOR_INCY                 | Enable custom JSON config only for INCY (default: `False`)                                                               |
 | SUB_PROFILE_TITLE                        | Base text used for the subscription `profile-title` header, shown before the emoji and username (default: `Subscription`) |
 | SUB_PROFILE_TITLE_EMOJI                  | Emoji shown next to the subscription profile title (default: `🪨`)                                                       |
 | SUB_SUPPORT_URL                          | Support URL sent in the subscription's `support-url` header (default: `https://t.me/`)                                   |
@@ -337,9 +341,55 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | DELETED_SUB_SUPPORT_URL                  | Support URL shown to deleted users (falls back to `SUB_SUPPORT_URL` if unset)                                            |
 | DELETED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised to deleted users, in hours (default: `12`)                                       |
 | DELETED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for deleted users                                                  |
+| REVOKED_SUB_ENABLED                      | Serve a stub subscription instead of a real config for a signature-valid token whose link was revoked, while the user still exists (default: `False`) |
+| REVOKED_SUB_LINK                         | Link used to build the stub links shown for revoked subscription links (required, along with `REVOKED_SUB_TITLES`, for `REVOKED_SUB_ENABLED` to take effect) |
+| REVOKED_SUB_TITLES                       | Pipe (`\|`)-separated messages shown in place of real configs for revoked links                                          |
+| REVOKED_SUB_SUPPORT_URL                  | Support URL shown for revoked links (falls back to `SUB_SUPPORT_URL` if unset)                                           |
+| REVOKED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised for revoked links, in hours (default: `12`)                                      |
+| REVOKED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for revoked links                                                  |
 | EXTRA_SUB_ENABLED                        | Append extra links to the end of v2ray-format subscriptions for active users (default: `False`)                          |
 | EXTRA_SUB_LINKS                          | Pipe (`\|`)-separated links appended as-is (already URL-encoded) to active users' v2ray subscriptions                     |
 | EXTRA_SUB_REQUIRED_INBOUND               | Comma-separated inbound tags required for a user to receive `EXTRA_SUB_LINKS`; empty means all active users get them     |
+
+> `EXTRA_SUB_LINKS` and every `*_SUB_LINK`/`*_SUB_TITLES` value must be wrapped in quotes in `.env`, e.g. `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`: a bare `#` starts a `.env` comment and truncates the rest of the line, and share links routinely contain `#remark` and `&param=value`.
+>
+> `EXTRA_SUB_LINKS` is only appended to the flat **v2ray** and **v2ray-json** subscription formats, and only for users whose status is `active` (not `on_hold`/`expired`/`limited`/`disabled`). Clash, Clash-Meta, sing-box and Outline subscriptions never include it, since those formats are built from parsed proxy objects rather than raw links.
+
+## Hysteria2 support
+
+Marzban can manage native **Hysteria2** inbounds, generating and rotating a per-user password the same way it does for other protocols. A few things to know:
+
+- Requires an Xray-core build with native Hysteria2 support; use a recent release - early Hysteria2 releases had UDP/datagram interop issues with real clients.
+- Only works with a real TLS certificate - **REALITY is not supported** for this protocol (it's QUIC-based, REALITY's TCP handshake mimicry doesn't apply).
+- The inbound listens on **UDP**, not TCP - open/forward the port accordingly.
+
+Minimal inbound example for `xray_config.json`:
+
+```json
+{
+  "tag": "HYSTERIA2",
+  "listen": "0.0.0.0",
+  "port": 443,
+  "protocol": "hysteria",
+  "settings": { "version": 2, "clients": [] },
+  "streamSettings": {
+    "network": "hysteria",
+    "security": "tls",
+    "hysteriaSettings": { "version": 2 },
+    "tlsSettings": {
+      "certificates": [
+        { "certificateFile": "/var/lib/marzban/certs/fullchain.pem", "keyFile": "/var/lib/marzban/certs/key.pem" }
+      ]
+    }
+  }
+}
+```
+
+## Geo files (routing data)
+
+This fork's Docker image replaces Xray's default `geoip.dat`/`geosite.dat` with the [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) set at build time (falling back to the upstream XTLS files if the download fails), installed into `/usr/local/share/xray`.
+
+If you run [Marzban-node](#marzban-node), set `XRAY_ASSETS_PATH` explicitly on each node - nodes don't automatically inherit the main panel's geo files, and without it they'll fall back to whatever their own image ships.
 
 
 # Documentation

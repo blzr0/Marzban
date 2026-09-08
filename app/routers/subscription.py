@@ -39,6 +39,7 @@ from config import (
     SUBSCRIPTION_PAGE_TEMPLATE,
     USE_CUSTOM_JSON_DEFAULT,
     USE_CUSTOM_JSON_FOR_HAPP,
+    USE_CUSTOM_JSON_FOR_INCY,
     USE_CUSTOM_JSON_FOR_STREISAND,
     USE_CUSTOM_JSON_FOR_V2RAYN,
     USE_CUSTOM_JSON_FOR_V2RAYNG,
@@ -285,6 +286,10 @@ def user_subscription(
             return Response(content=conf, media_type="application/json", headers=response_headers)
         else:
             return build_v2ray_response(user, response_headers, extra_links)
+
+    elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_INCY) and re.match(r'^INCY/', user_agent):
+        conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
+        return Response(content=conf, media_type="application/json", headers=response_headers)
 
     else:
         return build_v2ray_response(user, response_headers, extra_links)

@@ -66,6 +66,8 @@
     - [Функции](#функции)
 - [Руководство по установке](#руководство-по-установке)
 - [Конфигурация](#конфигурация)
+  - [Поддержка Hysteria2](#поддержка-hysteria2)
+  - [Гео-файлы (данные маршрутизации)](#гео-файлы-данные-маршрутизации)
 - [документация](#документация)
 - [API](#api)
 - [Backup](#backup)
@@ -90,7 +92,7 @@ Marzban удобен в использовании, многофункциона
 - Готовый **Web UI**
 - **REST API** бэкэнд
 - Поддержка [**множества узлов**](#marzban-node) (для распределения инфраструктуры и масштабируемости)
-- Поддержка протоколов **Vmess**, **VLESS**, **Trojan** и **Shadowsocks**
+- Поддержка протоколов **Vmess**, **VLESS**, **Trojan**, **Shadowsocks** и **Hysteria2**
 - Возможность активации **нескольких протоколов** для каждого пользователя
 - **Несколько пользователей** на одном inbound
 - **Несколько inbound** на **одном порту** (поддержка fallbacks)
@@ -319,12 +321,14 @@ server {
 | RECURRENT_NOTIFICATIONS_TIMEOUT          | Тайм-аут между каждым повторным запросом при обнаружении ошибки в секундах (по умолчанию: `180`)                               |
 | NOTIFY_REACHED_USAGE_PERCENT             | При каком проценте использования отправлять предупреждение (по умолчанию: `80`)                                                |
 | NOTIFY_DAYS_LEFT                         | Когда отправлять предупреждение об истечении срока действия (по умолчанию: `3`)                                                |
-| USERS_AUTODELETE_DAYS                    | Delete expired (and optionally limited users) after this many days (Negative values disable this feature, default: `-1`)       |
-| USER_AUTODELETE_INCLUDE_LIMITED_ACCOUNTS | Weather to include limited accounts in the auto-delete feature (default: `False`)                                              |
-| USE_CUSTOM_JSON_DEFAULT                  | Enable custom JSON config for ALL supported clients (default: `False`)                                                         |
-| USE_CUSTOM_JSON_FOR_V2RAYNG              | Enable custom JSON config only for V2rayNG (default: `False`)                                                                  |
-| USE_CUSTOM_JSON_FOR_STREISAND            | Enable custom JSON config only for Streisand (default: `False`)                                                                |
-| USE_CUSTOM_JSON_FOR_V2RAYN               | Enable custom JSON config only for V2rayN (default: `False`)                                                                   |
+| USERS_AUTODELETE_DAYS                    | Автоматически удалять истёкших (и опционально лимитированных) пользователей через это число дней (отрицательное значение отключает функцию, по умолчанию: `-1`) |
+| USER_AUTODELETE_INCLUDE_LIMITED_ACCOUNTS | Включать ли лимитированных пользователей в автоудаление (по умолчанию: `False`)                                                |
+| USE_CUSTOM_JSON_DEFAULT                  | Включить кастомный JSON-конфиг для ВСЕХ поддерживаемых клиентов (по умолчанию: `False`)                                        |
+| USE_CUSTOM_JSON_FOR_V2RAYNG              | Включить кастомный JSON-конфиг только для V2rayNG (по умолчанию: `False`)                                                      |
+| USE_CUSTOM_JSON_FOR_STREISAND            | Включить кастомный JSON-конфиг только для Streisand (по умолчанию: `False`)                                                    |
+| USE_CUSTOM_JSON_FOR_V2RAYN               | Включить кастомный JSON-конфиг только для V2rayN (по умолчанию: `False`)                                                       |
+| USE_CUSTOM_JSON_FOR_HAPP                 | Включить кастомный JSON-конфиг только для Happ (по умолчанию: `False`)                                                         |
+| USE_CUSTOM_JSON_FOR_INCY                 | Включить кастомный JSON-конфиг только для INCY (по умолчанию: `False`)                                                         |
 | SUB_PROFILE_TITLE                        | Базовый текст заголовка подписки `profile-title`, отображается перед эмодзи и именем пользователя (по умолчанию: `Subscription`) |
 | SUB_SUPPORT_URL                          | Ссылка на поддержку, отправляемая в заголовке подписки `support-url` (по умолчанию: `https://t.me/`)                          |
 | SUB_UPDATE_INTERVAL                      | Интервал обновления подписки, сообщаемый в заголовке `profile-update-interval`, в часах (по умолчанию: `12`)                   |
@@ -342,9 +346,55 @@ server {
 | DELETED_SUB_SUPPORT_URL                  | Ссылка на поддержку для удалённых пользователей (если не задана — используется `SUB_SUPPORT_URL`)                              |
 | DELETED_SUB_UPDATE_INTERVAL              | Интервал обновления подписки в часах, сообщаемый удалённым пользователям (по умолчанию: `12`)                                  |
 | DELETED_SUB_ANNOUNCE                     | Заголовок-объявление, отправляемый вместе с заглушкой-подпиской для удалённых пользователей                                    |
+| REVOKED_SUB_ENABLED                      | Отдавать заглушку-подписку вместо реального конфига по валидному (по подписи) токену, чья ссылка была отозвана, пока пользователь всё ещё существует (по умолчанию: `False`) |
+| REVOKED_SUB_LINK                         | Ссылка для формирования заглушек, показываемых по отозванным ссылкам (обязательна вместе с `REVOKED_SUB_TITLES` для работы `REVOKED_SUB_ENABLED`) |
+| REVOKED_SUB_TITLES                       | Сообщения через `\|`, показываемые вместо реальных конфигов по отозванным ссылкам                                              |
+| REVOKED_SUB_SUPPORT_URL                  | Ссылка на поддержку для отозванных ссылок (если не задана — используется `SUB_SUPPORT_URL`)                                    |
+| REVOKED_SUB_UPDATE_INTERVAL              | Интервал обновления подписки в часах, сообщаемый по отозванным ссылкам (по умолчанию: `12`)                                    |
+| REVOKED_SUB_ANNOUNCE                     | Заголовок-объявление, отправляемый вместе с заглушкой-подпиской по отозванным ссылкам                                          |
 | EXTRA_SUB_ENABLED                        | Добавлять дополнительные ссылки в конец v2ray-подписки для активных пользователей (по умолчанию: `False`)                      |
 | EXTRA_SUB_LINKS                          | Ссылки через `\|`, добавляемые как есть (уже в закодированном виде) в конец подписки активных пользователей                    |
 | EXTRA_SUB_REQUIRED_INBOUND               | Теги входящих соединений через запятую, при наличии хотя бы одного из которых пользователь получает `EXTRA_SUB_LINKS`; пусто — ссылки получают все активные пользователи |
+
+> `EXTRA_SUB_LINKS` и любое значение `*_SUB_LINK`/`*_SUB_TITLES` обязательно нужно оборачивать в кавычки в `.env`, например `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`: символ `#` без кавычек начинает комментарий в `.env` и обрезает остаток строки, а ссылки на конфиги регулярно содержат `#remark` и `&param=value`.
+>
+> `EXTRA_SUB_LINKS` добавляется только в подписки форматов **v2ray** (плоский список ссылок) и **v2ray-json**, и только пользователям со статусом `active` (не `on_hold`/`expired`/`limited`/`disabled`). В Clash, Clash-Meta, sing-box и Outline эти ссылки никогда не попадают, так как эти форматы строятся из разобранных объектов прокси, а не из сырых ссылок.
+
+## Поддержка Hysteria2
+
+Marzban умеет управлять нативными входящими соединениями **Hysteria2**: пароль для каждого пользователя генерируется и обновляется так же, как и для остальных протоколов. Важные моменты:
+
+- Требуется сборка Xray-core с нативной поддержкой Hysteria2; используйте свежий релиз — в ранних версиях поддержки Hysteria2 были проблемы совместимости по UDP/datagram с реальными клиентами.
+- Работает только с настоящим TLS-сертификатом — **REALITY для этого протокола не поддерживается** (он работает поверх QUIC, а имитация TCP-хендшейка в REALITY тут неприменима).
+- Входящее соединение слушает на **UDP**, а не TCP — открывайте/пробрасывайте порт соответственно.
+
+Минимальный пример входящего соединения для `xray_config.json`:
+
+```json
+{
+  "tag": "HYSTERIA2",
+  "listen": "0.0.0.0",
+  "port": 443,
+  "protocol": "hysteria",
+  "settings": { "version": 2, "clients": [] },
+  "streamSettings": {
+    "network": "hysteria",
+    "security": "tls",
+    "hysteriaSettings": { "version": 2 },
+    "tlsSettings": {
+      "certificates": [
+        { "certificateFile": "/var/lib/marzban/certs/fullchain.pem", "keyFile": "/var/lib/marzban/certs/key.pem" }
+      ]
+    }
+  }
+}
+```
+
+## Гео-файлы (данные маршрутизации)
+
+Docker-образ этого форка заменяет стандартные `geoip.dat`/`geosite.dat` от Xray на файлы из [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) на этапе сборки (с откатом на стандартные файлы XTLS, если скачать не удалось), устанавливая их в `/usr/local/share/xray`.
+
+Если вы используете [Marzban-node](#marzban-node), явно задайте `XRAY_ASSETS_PATH` на каждой ноде — ноды не наследуют гео-файлы главной панели автоматически, и без этой настройки будут использоваться файлы из образа ноды.
 
 # документация
 
