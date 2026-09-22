@@ -4,8 +4,35 @@ import traceback
 from app import app, logger, scheduler, xray
 from app.db import GetDB, crud
 from app.models.node import NodeStatus
+from app.xray.node import ReSTXRayNode
 from config import JOB_CORE_HEALTH_CHECK_INTERVAL
 from xray_api import exc as xray_exc
+
+
+def _node_core_recovers(node) -> bool:
+    """Second opinion before restarting a node's core after a failed API check:
+    a single failed gRPC call or a short network blip isn't Xray being down,
+    and a restart drops every client on the node. Retry once, then ask the
+    node itself (REST /status, independent of the gRPC channel); if Xray is
+    running there, rebuild only the gRPC channel. RPyC nodes keep the old
+    restart-on-first-failure behavior.
+    """
+    if not isinstance(node, ReSTXRayNode):
+        return False
+
+    time.sleep(2)
+    try:
+        assert node.started
+        node.api.get_sys_stats(timeout=6)
+        return True
+    except (ConnectionError, xray_exc.XrayError, AssertionError):
+        pass
+
+    try:
+        status = node.get_status()
+    except Exception:
+        return False
+    return bool(status.get("xray_running")) and node.reopen_api()
 
 
 def core_health_check():
@@ -24,6 +51,9 @@ def core_health_check():
                 assert node.started
                 node.api.get_sys_stats(timeout=6)
             except (ConnectionError, xray_exc.XrayError, AssertionError):
+                if _node_core_recovers(node):
+                    logger.info(f"Node {node_id}: Xray API check failed but the core is alive, not restarting")
+                    continue
                 if not config:
                     config = xray.config.include_db_users()
                 xray.operations.restart_node(node_id, config)

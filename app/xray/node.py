@@ -1,3 +1,5 @@
+import hashlib
+import json
 import socket
 import re
 import ssl
@@ -24,6 +26,21 @@ def string_to_temp_file(content: str):
     file.write(content)
     file.flush()
     return file
+
+
+def config_fingerprint(config: dict) -> str:
+    """Hash of what needs an Xray restart to apply: the config minus users
+    (synced live over the API instead) and minus the panel's own API inbound,
+    whose port is picked at random on every panel start and which the node
+    replaces with its own anyway.
+    """
+    stripped = {key: value for key, value in config.items() if key != "inbounds"}
+    stripped["inbounds"] = [
+        {**inbound, "settings": {k: v for k, v in (inbound.get("settings") or {}).items() if k != "clients"}}
+        for inbound in config.get("inbounds", [])
+        if inbound.get("tag") != "API_INBOUND"
+    ]
+    return hashlib.sha256(json.dumps(stripped, sort_keys=True).encode()).hexdigest()
 
 
 class SANIgnoringAdaptor(HTTPAdapter):
@@ -79,6 +96,7 @@ class ReSTXRayNode:
 
         self._api = None
         self._started = False
+        self.attached = False
 
     def _prepare_config(self, config: XRayConfig):
         for inbound in config.get("inbounds", []):
@@ -186,23 +204,7 @@ class ReSTXRayNode:
             raise NodeAPIError(404, NODE_STATUS_UNSUPPORTED)
         raise NodeAPIError(res.status_code, res.text)
 
-    def start(self, config: XRayConfig):
-        if not self.connected:
-            self.connect()
-
-        config = self._prepare_config(config)
-        json_config = config.to_json()
-
-        try:
-            res = self.make_request("/start", timeout=10, config=json_config)
-        except NodeAPIError as exc:
-            if exc.detail == 'Xray is started already':
-                return self.restart(config)
-            else:
-                raise exc
-
-        self._started = True
-
+    def _open_api(self):
         self._api = XRayAPI(
             address=self.address,
             port=self.api_port,
@@ -214,6 +216,57 @@ class ReSTXRayNode:
             grpc.channel_ready_future(self._api._channel).result(timeout=5)
         except grpc.FutureTimeoutError:
             raise ConnectionError('Failed to connect to node\'s API')
+
+    def reopen_api(self) -> bool:
+        """Rebuild just the gRPC channel to an already-running core. For when
+        API calls fail but the node reports Xray healthy - a broken channel
+        shouldn't cost a core restart.
+        """
+        try:
+            self._open_api()
+            self._api.get_sys_stats(timeout=6)
+            return True
+        except Exception:
+            return False
+
+    def start(self, config: XRayConfig):
+        if not self.connected:
+            self.connect()
+
+        config = self._prepare_config(config)
+        fingerprint = config_fingerprint(config)
+        self.attached = False
+
+        # Node already running exactly this config (modulo users) for us:
+        # attach to it instead of restarting, so a panel restart or a network
+        # blip doesn't drop every client connection on the node. Users that
+        # changed meanwhile are the caller's to sync (see attached).
+        try:
+            info = self.make_request("/", timeout=10)
+        except NodeAPIError:
+            info = {}
+        if info.get("started") and info.get("config_fingerprint") == fingerprint:
+            try:
+                self._open_api()
+                self._started = True
+                self.attached = True
+                return info
+            except ConnectionError:
+                pass  # can't reach the running core's API - restart below
+
+        json_config = config.to_json()
+
+        try:
+            res = self.make_request("/start", timeout=10, config=json_config,
+                                    config_fingerprint=fingerprint)
+        except NodeAPIError as exc:
+            if exc.detail == 'Xray is started already':
+                return self.restart(config)
+            else:
+                raise exc
+
+        self._started = True
+        self._open_api()
 
         return res
 
@@ -230,23 +283,13 @@ class ReSTXRayNode:
             self.connect()
 
         config = self._prepare_config(config)
-        json_config = config.to_json()
+        self.attached = False
 
-        res = self.make_request("/restart", timeout=10, config=json_config)
+        res = self.make_request("/restart", timeout=10, config=config.to_json(),
+                                config_fingerprint=config_fingerprint(config))
 
         self._started = True
-
-        self._api = XRayAPI(
-            address=self.address,
-            port=self.api_port,
-            ssl_cert=self._node_cert.encode(),
-            ssl_target_name="localhost"
-        )
-
-        try:
-            grpc.channel_ready_future(self._api._channel).result(timeout=5)
-        except grpc.FutureTimeoutError:
-            raise ConnectionError('Failed to connect to node\'s API')
+        self._open_api()
 
         return res
 

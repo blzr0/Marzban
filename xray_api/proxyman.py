@@ -32,6 +32,18 @@ class Proxyman(XRayBase):
         except grpc.RpcError as e:
             raise RelatedError(e)
 
+    def get_inbound_users(self, tag: str, timeout: int = None) -> list:
+        """Users currently loaded in an inbound, as protocol.User messages
+        (email + account TypedMessage). Cores that don't implement
+        GetInboundUsers raise an XrayError.
+        """
+        stub = command_pb2_grpc.HandlerServiceStub(self._channel)
+        try:
+            res = stub.GetInboundUsers(command_pb2.GetInboundUserRequest(tag=tag), timeout=timeout)
+            return list(res.users)
+        except grpc.RpcError as e:
+            raise RelatedError(e)
+
     def add_inbound_user(self, tag: str, user: Account, timeout: int = None) -> bool:
         return self.alter_inbound(
             tag=tag,
