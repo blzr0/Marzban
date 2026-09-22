@@ -39,7 +39,7 @@ i18n
                 loadPath: joinPaths([
                     import.meta.env.BASE_URL,
                     `statics/locales/{{lng}}.json`,
-                ]),
+                ]) + `?v=${__BUILD_ID__}`,
             },
         },
         function (err, t) {
