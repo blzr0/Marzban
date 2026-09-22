@@ -147,12 +147,13 @@ def remove_user(
     admin: Admin = Depends(Admin.get_current),
 ):
     """Remove a user"""
+    # users created by the env-configured sudo admin have no admin row
+    user_admin = Admin.model_validate(dbuser.admin) if dbuser.admin else None
+
     crud.remove_user(db, dbuser)
     bg.add_task(xray.operations.remove_user, dbuser=dbuser)
 
-    bg.add_task(
-        report.user_deleted, username=dbuser.username, user_admin=Admin.model_validate(dbuser.admin), by=admin
-    )
+    bg.add_task(report.user_deleted, username=dbuser.username, user_admin=user_admin, by=admin)
 
     logger.info(f'User "{dbuser.username}" deleted')
     return {"detail": "User successfully deleted"}
