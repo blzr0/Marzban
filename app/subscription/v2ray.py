@@ -516,10 +516,7 @@ class V2rayShareLink(str):
         sni: str = "", ais: bool = False, obfs_password: str = "",
     ):
         """Inverse of app.subscription.link_parser.parse_share_link() for
-        hysteria2 - what this generates must stay parseable by that function,
-        except for obfs_password: link_parser rejects obfs links outright
-        (see its comment), since EXTRA_SUB_LINKS obfs support isn't
-        implemented yet, but the panel's own inbound can still use obfs.
+        hysteria2 - what this generates must stay parseable by that function.
         """
         query = {}
         if sni:
@@ -1260,6 +1257,7 @@ class V2rayJsonConfig(str):
                 auth=credential,
                 sni=params.get("sni"),
                 ais=params.get("insecure") in ("1", "true", "True"),
+                obfs_password=parsed.get("obfs_password"),
             )
 
         else:

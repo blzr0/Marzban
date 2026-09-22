@@ -65,12 +65,18 @@ def parse_share_link(link: str) -> Optional[dict]:
 
         protocol = "vless" if scheme == "vless" else "hysteria2"
 
+        obfs_password = ""
         if protocol == "hysteria2" and params.get("obfs"):
-            # obfs/Salamander for hysteria2 is configured via finalmask, not
-            # the transport - not implemented, so don't emit a config that
-            # would silently fail to connect.
-            _log_skip(link, "hysteria2 obfs unsupported")
-            return None
+            # Salamander is the only obfs hysteria2 defines; anything else
+            # would produce a config that silently fails to connect, as would
+            # a salamander link missing its password.
+            if params["obfs"].lower() != "salamander":
+                _log_skip(link, "unsupported hysteria2 obfs type")
+                return None
+            obfs_password = params.get("obfs-password", "")
+            if not obfs_password:
+                _log_skip(link, "hysteria2 salamander obfs without obfs-password")
+                return None
 
         return {
             "protocol": protocol,
@@ -78,6 +84,7 @@ def parse_share_link(link: str) -> Optional[dict]:
             "address": host,
             "port": port,
             "credential": credential,
+            "obfs_password": obfs_password,
             "params": params,
         }
     except Exception:
