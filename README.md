@@ -385,6 +385,24 @@ Minimal inbound example for `xray_config.json`:
 }
 ```
 
+### Salamander obfuscation
+
+In Xray, Hysteria2's Salamander obfuscation is a separate **Finalmask** UDP layer, not part of `hysteriaSettings`. An `"obfs"` block inside `hysteriaSettings` (the format of the standalone Hysteria server and sing-box) is silently ignored by Xray, leaving the inbound unobfuscated. Put it in `streamSettings.finalmask` instead:
+
+```json
+"streamSettings": {
+  "network": "hysteria",
+  "security": "tls",
+  "finalmask": {
+    "udp": [{ "type": "salamander", "settings": { "password": "RANDOM_PASSWORD" } }]
+  },
+  "hysteriaSettings": { "version": 2 },
+  "tlsSettings": { ... }
+}
+```
+
+Marzban picks the password up from there and adds it to every subscription format that supports Hysteria2: share links (`obfs=salamander&obfs-password=...`), v2ray-json, Clash Meta and sing-box. `hysteria2://` links in `EXTRA_SUB_LINKS` may carry `obfs=salamander&obfs-password=...` as well; links with any other obfs type are skipped.
+
 ## Geo files (routing data)
 
 This fork's Docker image replaces Xray's default `geoip.dat`/`geosite.dat` with the [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) set at build time (falling back to the upstream XTLS files if the download fails), installed into `/usr/local/share/xray`.
@@ -453,6 +471,11 @@ For more information, You can read [Marzban CLI's documentation](./cli/README.md
 
 The Marzban project introduces the [Marzban-node](https://github.com/gozargah/marzban-node), which revolutionizes infrastructure distribution. With Marzban-node, you can distribute your infrastructure across multiple locations, unlocking benefits such as redundancy, high availability, scalability, flexibility. Marzban-node empowers users to connect to different servers, offering them the flexibility to choose and connect to multiple servers instead of being limited to only one server.
 For more detailed information and installation instructions, please refer to the [Marzban-node official documentation](https://github.com/gozargah/marzban-node)
+
+This fork is meant to be used with its own node, [blzr0/Marzban-node](https://github.com/blzr0/Marzban-node) (`marzban-node.sh` from [blzr0/Marzban-scripts](https://github.com/blzr0/Marzban-scripts) installs it). Together they add:
+
+- **Live Xray status per node** in the dashboard (Nodes → expand a node): whether Xray is actually running, its uptime, API reachability and active inbounds. The node's badge only shows whether the panel can talk to the node; this shows whether Xray on it is alive. Needs Marzban-node v1.0.1+.
+- **No needless Xray restarts on nodes.** Restarting the panel, a short network outage between the panel and a node, or a single failed API check no longer restarts Xray on the node (which used to drop every client connection on it). The panel reattaches to the running core and syncs users added, changed or removed in the meantime over the API. Xray is still restarted when the core config itself changes (inbounds, ports, certificates). Needs panel v0.8.36+ **and** node v1.0.2+ - with an older version on either side, the old restart-on-connect behavior stays. Right after upgrading, each node restarts once more: the core it's running was started without the config fingerprint this relies on.
 
 # Webhook notifications
 

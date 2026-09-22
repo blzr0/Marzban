@@ -377,6 +377,24 @@ Marzban 可以管理原生的 **Hysteria2** 入站：每个用户的密码生成
 }
 ```
 
+### Salamander 混淆
+
+在 Xray 中，Hysteria2 的 Salamander 混淆是一个独立的 **Finalmask** UDP 层，而不是 `hysteriaSettings` 的一部分。写在 `hysteriaSettings` 里的 `"obfs"` 块（独立 Hysteria 服务端和 sing-box 使用的格式）会被 Xray 静默忽略，入站实际上没有混淆。请改为写在 `streamSettings.finalmask` 中：
+
+```json
+"streamSettings": {
+  "network": "hysteria",
+  "security": "tls",
+  "finalmask": {
+    "udp": [{ "type": "salamander", "settings": { "password": "随机密码" } }]
+  },
+  "hysteriaSettings": { "version": 2 },
+  "tlsSettings": { ... }
+}
+```
+
+Marzban 会从这里读取密码，并加入所有支持 Hysteria2 的订阅格式：分享链接（`obfs=salamander&obfs-password=...`）、v2ray-json、Clash Meta 和 sing-box。`EXTRA_SUB_LINKS` 中的 `hysteria2://` 链接同样可以带有 `obfs=salamander&obfs-password=...`；其他 obfs 类型的链接会被跳过。
+
 ## Geo 文件（路由数据）
 
 此分支的 Docker 镜像在构建时会将 Xray 默认的 `geoip.dat`/`geosite.dat` 替换为 [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) 提供的文件（下载失败时会回退到 XTLS 官方文件），并安装到 `/usr/local/share/xray`。

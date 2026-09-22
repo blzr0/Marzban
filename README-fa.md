@@ -362,6 +362,24 @@ server {
 }
 ```
 
+### مبهم‌سازی Salamander
+
+در Xray، مبهم‌سازی Salamander برای Hysteria2 یک لایه‌ی جداگانه‌ی UDP به نام **Finalmask** است و بخشی از `hysteriaSettings` نیست. بلوک `"obfs"` داخل `hysteriaSettings` (قالبی که سرور مستقل Hysteria و sing-box استفاده می‌کنند) توسط Xray بی‌صدا نادیده گرفته می‌شود و inbound بدون مبهم‌سازی می‌ماند. آن را در `streamSettings.finalmask` قرار دهید:
+
+```json
+"streamSettings": {
+  "network": "hysteria",
+  "security": "tls",
+  "finalmask": {
+    "udp": [{ "type": "salamander", "settings": { "password": "RANDOM_PASSWORD" } }]
+  },
+  "hysteriaSettings": { "version": 2 },
+  "tlsSettings": { ... }
+}
+```
+
+مرزبان رمز را از همین‌جا می‌خواند و آن را به همه‌ی فرمت‌های اشتراکی که از Hysteria2 پشتیبانی می‌کنند اضافه می‌کند: لینک‌ها (`obfs=salamander&obfs-password=...`)، v2ray-json، Clash Meta و sing-box. لینک‌های `hysteria2://` در `EXTRA_SUB_LINKS` هم می‌توانند `obfs=salamander&obfs-password=...` داشته باشند؛ لینک‌هایی با نوع دیگری از obfs نادیده گرفته می‌شوند.
+
 ## فایل‌های Geo (داده‌های مسیریابی)
 
 ایمیج Docker این فورک، فایل‌های پیش‌فرض `geoip.dat`/`geosite.dat` مربوط به Xray را در زمان build با فایل‌های [`runetfreedom/russia-v2ray-rules-dat`](https://github.com/runetfreedom/russia-v2ray-rules-dat) جایگزین می‌کند (در صورت شکست دانلود، به فایل‌های پیش‌فرض XTLS برمی‌گردد) و آن‌ها را در مسیر `/usr/local/share/xray` نصب می‌کند.
