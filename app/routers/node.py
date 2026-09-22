@@ -79,6 +79,46 @@ def get_node(
     return dbnode
 
 
+_NODE_STATUS_UNREACHABLE_DEFAULTS = {
+    "reachable": False,
+    "xray_running": False,
+    "xray_pid": None,
+    "xray_uptime_seconds": 0,
+    "listening_sockets": [],
+    "xray_api_reachable": False,
+    "last_restart_reason": None,
+}
+
+
+@router.get("/node/{node_id}/status")
+def get_node_status(
+    dbnode: NodeResponse = Depends(get_node),
+    _: Admin = Depends(Admin.check_sudo_admin),
+):
+    """Live Xray process/inbound status straight from the node, over the
+    same mTLS channel used for node control. Deliberately independent of
+    NodeResponse.status/connected: that flag only reflects whether the
+    control-plane connection is alive, not whether Xray itself is still
+    running on the other end - this is what actually answers that.
+
+    Never raises: an unreachable node, or one running an older
+    Marzban-node build without this diagnostic, degrades to reachable=False
+    rather than a 500 or 404. The xray_* fields are meaningless in that case
+    - "couldn't ask" is not the same as "Xray is down", and clients must
+    check `reachable` before reading them.
+    """
+    node = xray.nodes.get(dbnode.id)
+    if not node:
+        return {**_NODE_STATUS_UNREACHABLE_DEFAULTS, "last_error": "Node is not connected"}
+
+    try:
+        status = node.get_status()
+    except Exception as exc:
+        return {**_NODE_STATUS_UNREACHABLE_DEFAULTS, "last_error": str(exc)}
+
+    return {**status, "reachable": True}
+
+
 @router.websocket("/node/{node_id}/logs")
 async def node_logs(node_id: int, websocket: WebSocket, db: Session = Depends(get_db)):
     token = websocket.query_params.get("token") or websocket.headers.get(

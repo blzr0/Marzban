@@ -66,6 +66,7 @@ import { DeleteNodeModal } from "./DeleteNodeModal";
 import { DeleteIcon } from "./DeleteUserModal";
 import { ReloadIcon } from "./Filters";
 import { Icon } from "./Icon";
+import { NodeLiveStatus } from "./NodeLiveStatus";
 import { NodeModalStatusBadge } from "./NodeModalStatusBadge";
 
 import { fetch } from "service/http";
@@ -208,6 +209,7 @@ const NodeAccordion: FC<AccordionInboundType> = ({ toggleAccordion, node }) => {
             </Alert>
           )}
         </VStack>
+        <NodeLiveStatus nodeId={node.id} />
         <NodeForm
           form={form}
           mutate={mutate}

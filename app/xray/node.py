@@ -34,6 +34,9 @@ class SANIgnoringAdaptor(HTTPAdapter):
                                        assert_hostname=False)
 
 
+NODE_STATUS_UNSUPPORTED = "Node doesn't expose live status - update Marzban-node"
+
+
 class NodeAPIError(Exception):
     def __init__(self, status_code, detail):
         self.status_code = status_code
@@ -165,6 +168,23 @@ class ReSTXRayNode:
     def get_version(self):
         res = self.make_request("/", timeout=3)
         return res.get('core_version')
+
+    def get_status(self) -> dict:
+        """Live Xray process/inbound status from the node's diagnostic
+        /status route - GET, unauthenticated by session_id (see that route's
+        own docstring), so this can't reuse make_request()'s POST+session_id
+        shape.
+        """
+        try:
+            res = self.session.get(self._rest_api_url + "/status", timeout=5)
+        except Exception as e:
+            raise NodeAPIError(0, str(e))
+
+        if res.status_code == 200:
+            return res.json()
+        if res.status_code == 404:
+            raise NodeAPIError(404, NODE_STATUS_UNSUPPORTED)
+        raise NodeAPIError(res.status_code, res.text)
 
     def start(self, config: XRayConfig):
         if not self.connected:
@@ -383,6 +403,38 @@ class RPyCXRayNode:
 
     def get_version(self):
         return self.remote.fetch_xray_version()
+
+    def get_status(self) -> dict:
+        """Live Xray process/inbound status from the node's exposed
+        status() RPyC method - same connection/auth as everything else here.
+
+        Goes through self.connection directly, not self.remote: the latter
+        reconnects when the link is down, and a read-only status poll must
+        not re-establish the control connection behind operations.connect_node's
+        back. The result is also copied into plain values here: brine doesn't
+        pass dict/list by value, so what comes back is a netref whose fields
+        would otherwise be fetched lazily - after the caller's error handling.
+        """
+        if not self.connected:
+            raise ConnectionError("Node is not connected")
+
+        try:
+            remote = self.connection.root.status()
+        except AttributeError:
+            raise ConnectionError(NODE_STATUS_UNSUPPORTED)
+
+        return {
+            "xray_running": bool(remote["xray_running"]),
+            "xray_pid": remote["xray_pid"],
+            "xray_uptime_seconds": remote["xray_uptime_seconds"],
+            "listening_sockets": [
+                {"tag": s["tag"], "proto": s["proto"], "port": s["port"]}
+                for s in remote["listening_sockets"]
+            ],
+            "xray_api_reachable": bool(remote["xray_api_reachable"]),
+            "last_restart_reason": remote["last_restart_reason"],
+            "last_error": remote["last_error"],
+        }
 
     def _prepare_config(self, config: XRayConfig):
         for inbound in config.get("inbounds", []):

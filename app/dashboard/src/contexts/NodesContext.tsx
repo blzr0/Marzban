@@ -28,6 +28,25 @@ export const NodeSchema = z.object({
 
 export type NodeType = z.infer<typeof NodeSchema>;
 
+export type NodeLiveInboundType = {
+  tag: string;
+  proto: string;
+  port: number;
+};
+
+export type NodeLiveStatusType = {
+  // false = the panel couldn't get a status from the node at all; the
+  // xray_* fields are then placeholders, not "Xray is down"
+  reachable: boolean;
+  xray_running: boolean;
+  xray_pid: number | null;
+  xray_uptime_seconds: number;
+  listening_sockets: NodeLiveInboundType[];
+  xray_api_reachable: boolean;
+  last_restart_reason: string | null;
+  last_error: string | null;
+};
+
 export const getNodeDefaultValues = (): NodeType => ({
   name: "",
   address: "",
@@ -46,6 +65,7 @@ export type NodeStore = {
   fetchNodesUsage: (query: FilterUsageType) => Promise<void>;
   updateNode: (node: NodeType) => Promise<unknown>;
   reconnectNode: (node: NodeType) => Promise<unknown>;
+  fetchNodeStatus: (nodeId: number) => Promise<NodeLiveStatusType>;
   deletingNode?: NodeType | null;
   deleteNode: () => Promise<unknown>;
   setDeletingNode: (node: NodeType | null) => void;
@@ -58,6 +78,17 @@ export const useNodesQuery = () => {
     queryFn: useNodes.getState().fetchNodes,
     refetchInterval: isEditingNodes ? 3000 : undefined,
     refetchOnWindowFocus: false,
+  });
+};
+
+export const useNodeStatusQuery = (nodeId?: number | null, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ["node-status", nodeId],
+    queryFn: () => useNodes.getState().fetchNodeStatus(nodeId as number),
+    enabled: enabled && !!nodeId,
+    refetchInterval: enabled && nodeId ? 5000 : false,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 };
 
@@ -85,6 +116,9 @@ export const useNodes = create<NodeStore>((set, get) => ({
     return fetch(`/node/${body.id}/reconnect`, {
       method: "POST",
     });
+  },
+  fetchNodeStatus(nodeId) {
+    return fetch(`/node/${nodeId}/status`);
   },
   deleteNode: () => {
     return fetch(`/node/${get().deletingNode?.id}`, {
