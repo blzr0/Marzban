@@ -153,7 +153,9 @@ export const NodeLiveStatus: FC<Props> = ({ nodeId }) => {
               {t("nodes.status.lastRestart")}
             </Text>
             <Text color="gray.600" _dark={{ color: "gray.300" }}>
-              {data.last_restart_reason}
+              {t(`nodes.status.reason.${data.last_restart_reason}`, {
+                defaultValue: data.last_restart_reason,
+              })}
             </Text>
           </HStack>
         )}

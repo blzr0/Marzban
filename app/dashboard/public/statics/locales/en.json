@@ -122,6 +122,8 @@
   "nodes.status.notRunning": "not running",
   "nodes.status.pidUptime": "pid {{pid}}, uptime {{uptime}}",
   "nodes.status.reachable": "reachable",
+  "nodes.status.reason.manual": "manual",
+  "nodes.status.reason.panel_requested": "requested by the panel",
   "nodes.status.running": "running",
   "nodes.status.unknown": "unknown — node isn't responding",
   "nodes.status.unreachable": "unreachable",
