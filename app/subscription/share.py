@@ -98,6 +98,8 @@ def generate_v2ray_json_subscription(
     process_inbounds_and_tags(
         inbounds, proxies, format_variables, conf=conf, reverse=reverse
     )
+    # after the (possibly reversed) hosts, so AUTO profiles stay on top either way
+    conf.insert_auto_configs()
 
     if extra_links:
         # No fragment/noise here: these outbounds point at external servers

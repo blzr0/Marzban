@@ -13,6 +13,11 @@ from app.subscription.funcs import get_grpc_gun, get_grpc_multi
 from app.templates import render_template
 from app.utils.helpers import UUIDEncoder
 from config import (
+    AUTO_SERVER_ALL_REMARK,
+    AUTO_SERVER_ENABLED,
+    AUTO_SERVER_EXCLUDE_PROTOCOLS,
+    AUTO_SERVER_GROUPS,
+    AUTO_SERVER_PROBE_INTERVAL,
     EXTERNAL_CONFIG,
     GRPC_USER_AGENT_TEMPLATE,
     MUX_TEMPLATE,
@@ -564,11 +569,109 @@ class V2rayJsonConfig(str):
 
         del user_agent_data, grpc_user_agent_data
 
-    def add_config(self, remarks, outbounds):
+        # AUTO profile name -> [(remarks, proxy outbound, dialer outbound or None)].
+        # Explicit groups are pre-created so they keep the AUTO_SERVER_GROUPS order;
+        # automatic ones are appended in order of first appearance.
+        self.auto_groups = {name: [] for name, _ in AUTO_SERVER_GROUPS}
+        self.auto_all = []
+
+    def add_config(self, remarks, outbounds, inbound_tag=None):
         json_template = json.loads(self.template)
         json_template["remarks"] = remarks
         json_template["outbounds"] = outbounds + json_template["outbounds"]
         self.config.append(json_template)
+
+        if AUTO_SERVER_ENABLED and inbound_tag:
+            self.collect_auto_candidate(remarks, outbounds, inbound_tag)
+
+    @staticmethod
+    def auto_group_label(outbound: dict) -> str:
+        protocol = outbound.get("protocol", "")
+        if protocol == "hysteria":
+            return "HY2"
+        stream = outbound.get("streamSettings") or {}
+        network = stream.get("network") or "tcp"
+        parts = [protocol.upper(), "TCP" if network in ("tcp", "raw") else network.upper()]
+        security = stream.get("security")
+        if security and security != "none":
+            parts.append("TLS" if security == "tls" else security.capitalize())
+        return " ".join(parts)
+
+    def collect_auto_candidate(self, remarks: str, outbounds: list, inbound_tag: str):
+        proxy = next((o for o in outbounds if o.get("tag") == "proxy"), None)
+        if proxy is None:
+            return
+        dialer = next((o for o in outbounds if o.get("tag") == "dialer"), None)
+        candidate = (remarks, copy.deepcopy(proxy), copy.deepcopy(dialer) if dialer else None)
+
+        if AUTO_SERVER_GROUPS:
+            for name, tags in AUTO_SERVER_GROUPS:
+                if inbound_tag in tags:
+                    self.auto_groups[name].append(candidate)
+        else:
+            name = f"⚡ AUTO {self.auto_group_label(proxy)}"
+            self.auto_groups.setdefault(name, []).append(candidate)
+
+        if AUTO_SERVER_ALL_REMARK and proxy.get("protocol", "").lower() not in AUTO_SERVER_EXCLUDE_PROTOCOLS:
+            self.auto_all.append(candidate)
+
+    def make_auto_config(self, remarks: str, candidates: list) -> dict:
+        auto_outbounds, dialers = [], []
+        for n, (server_remarks, proxy, dialer) in enumerate(candidates, start=1):
+            proxy = copy.deepcopy(proxy)
+            proxy["tag"] = f"auto-{n}-{server_remarks}"
+            if dialer:
+                dialer = copy.deepcopy(dialer)
+                dialer["tag"] = f"dialer-{n}"
+                proxy.setdefault("streamSettings", {}).setdefault("sockopt", {})["dialerProxy"] = dialer["tag"]
+                dialers.append(dialer)
+            auto_outbounds.append(proxy)
+
+        config = json.loads(self.template)
+        config["remarks"] = remarks
+        config["outbounds"] = auto_outbounds + dialers + config.get("outbounds", [])
+
+        observatory = config.get("observatory")
+        if observatory:
+            # the template brings its own probes; just make them cover our servers too
+            selector = observatory.setdefault("subjectSelector", [])
+            if "auto-" not in selector:
+                selector.append("auto-")
+        else:
+            config["observatory"] = {
+                "subjectSelector": ["auto-"],
+                "probeUrl": "https://www.gstatic.com/generate_204",
+                "probeInterval": AUTO_SERVER_PROBE_INTERVAL,
+                "enableConcurrency": True,
+            }
+
+        routing = config.setdefault("routing", {})
+        routing.setdefault("balancers", []).append({
+            "tag": "auto",
+            "selector": ["auto-"],
+            "strategy": {"type": "leastPing"},
+            "fallbackTag": auto_outbounds[0]["tag"],
+        })
+        rules = routing.setdefault("rules", [])
+        for rule in rules:
+            # there is no single "proxy" outbound in an AUTO profile
+            if rule.get("outboundTag") == "proxy":
+                del rule["outboundTag"]
+                rule["balancerTag"] = "auto"
+        rules.append({"type": "field", "network": "tcp,udp", "balancerTag": "auto"})
+        return config
+
+    def insert_auto_configs(self):
+        """Put the AUTO profiles at the top of the subscription. Call after all
+        hosts are added (and reversed, if requested) but before extra links."""
+        if not AUTO_SERVER_ENABLED:
+            return
+        groups = []
+        if AUTO_SERVER_ALL_REMARK:
+            groups.append((AUTO_SERVER_ALL_REMARK, self.auto_all))
+        groups.extend(self.auto_groups.items())
+        self.config[:0] = [self.make_auto_config(name, candidates)
+                           for name, candidates in groups if len(candidates) >= 2]
 
     def render(self, reverse=False):
         if reverse:
@@ -1110,7 +1213,7 @@ class V2rayJsonConfig(str):
                 ais=bool(inbound.get('ais')),
                 obfs_password=inbound.get('obfs_password'),
             )
-            self.add_config(remarks=remark, outbounds=[outbound])
+            self.add_config(remarks=remark, outbounds=[outbound], inbound_tag=inbound.get('tag'))
             return
 
         tls = (inbound['tls'])
@@ -1207,7 +1310,7 @@ class V2rayJsonConfig(str):
             outbound["mux"] = mux_config
             outbound["mux"]["enabled"] = True
 
-        self.add_config(remarks=remark, outbounds=outbounds)
+        self.add_config(remarks=remark, outbounds=outbounds, inbound_tag=inbound.get('tag'))
 
     def add_parsed_link(self, parsed: dict, fragment: str = "", noises: str = "") -> None:
         """Add one already-parsed EXTRA_SUB_LINKS entry (see

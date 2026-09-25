@@ -61,6 +61,7 @@
 - [Installation guide](#installation-guide)
 - [Configuration](#configuration)
   - [Hysteria2 support](#hysteria2-support)
+  - [Auto server (leastPing)](#auto-server-leastping)
   - [Geo files (routing data)](#geo-files-routing-data)
 - [Documentation](#documentation)
 - [API](#api)
@@ -350,6 +351,11 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | EXTRA_SUB_ENABLED                        | Append extra links to the end of v2ray-format subscriptions for active users (default: `False`)                          |
 | EXTRA_SUB_LINKS                          | Pipe (`\|`)-separated links appended as-is (already URL-encoded) to active users' v2ray subscriptions                     |
 | EXTRA_SUB_REQUIRED_INBOUND               | Comma-separated inbound tags required for a user to receive `EXTRA_SUB_LINKS`; empty means all active users get them     |
+| AUTO_SERVER_ENABLED                      | Add "⚡ AUTO" profiles to v2ray-json subscriptions: the client picks the server with the lowest ping (default: `False`)    |
+| AUTO_SERVER_GROUPS                       | Explicit AUTO groups: `Name=TAG1,TAG2;Name2=TAG3`; empty means one automatic group per protocol/transport/security       |
+| AUTO_SERVER_ALL_REMARK                   | Name of an extra AUTO profile built from all servers; empty means it isn't built                                          |
+| AUTO_SERVER_EXCLUDE_PROTOCOLS            | Comma-separated outbound protocols left out of the all-servers profile, e.g. `hysteria`                                   |
+| AUTO_SERVER_PROBE_INTERVAL               | How often the client pings each server of an AUTO profile (default: `1m`)                                                 |
 
 > `EXTRA_SUB_LINKS` and every `*_SUB_LINK`/`*_SUB_TITLES` value must be wrapped in quotes in `.env`, e.g. `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`: a bare `#` starts a `.env` comment and truncates the rest of the line, and share links routinely contain `#remark` and `&param=value`.
 >
@@ -402,6 +408,28 @@ In Xray, Hysteria2's Salamander obfuscation is a separate **Finalmask** UDP laye
 ```
 
 Marzban picks the password up from there and adds it to every subscription format that supports Hysteria2: share links (`obfs=salamander&obfs-password=...`), v2ray-json, Clash Meta and sing-box. `hysteria2://` links in `EXTRA_SUB_LINKS` may carry `obfs=salamander&obfs-password=...` as well; links with any other obfs type are skipped.
+
+## Auto server (leastPing)
+
+With `AUTO_SERVER_ENABLED=True`, the **v2ray-json** subscription gets extra "⚡ AUTO" profiles at the top of the list. Each one is a full Xray config holding several of the user's servers plus an `observatory` that pings them (`https://www.gstatic.com/generate_204`, every `AUTO_SERVER_PROBE_INTERVAL`) and a `leastPing` balancer: the client's own Xray-core sends new connections through the server with the lowest ping and skips servers whose probe fails. Nothing changes on the panel, nodes or `xray_config.json`, and the regular per-server profiles stay as they are.
+
+- Only clients that receive the v2ray-json subscription get these profiles (see `USE_CUSTOM_JSON_*`); other formats are unchanged.
+- The balancer re-picks on every probe, so when pings are close new connections may move between servers (and countries). Connections that are already open stay where they are.
+- Rules from your v2ray template are kept in order; a rule that sends traffic to `proxy` goes to the balancer instead, and all remaining traffic goes to the balancer as the last rule.
+- A group with fewer than two of the user's servers isn't shown. `EXTRA_SUB_LINKS` never join AUTO profiles.
+
+Without `AUTO_SERVER_GROUPS` there is one group per server type, e.g. `⚡ AUTO VLESS XHTTP Reality`, `⚡ AUTO HY2`. To set groups yourself, list inbound tags (tags may contain spaces, only commas separate them); an inbound can be in several groups, inbounds not listed in any group get no AUTO profile:
+
+```env
+AUTO_SERVER_ENABLED=True
+AUTO_SERVER_GROUPS="⚡ AUTO XHTTP=XHTTP_REALITY_1,XHTTP_REALITY_2;⚡ AUTO Reality=VLESS_TCP_REALITY;⚡ AUTO HY2=HYSTERIA2"
+AUTO_SERVER_ALL_REMARK="⚡ AUTO"
+AUTO_SERVER_EXCLUDE_PROTOCOLS=hysteria
+```
+
+Wrap `AUTO_SERVER_GROUPS` and `AUTO_SERVER_ALL_REMARK` in quotes in `.env`.
+
+> If an AUTO profile contains a Hysteria2 server and the client's Xray-core has no `hysteria` outbound, the client fails to start that whole profile, not just the one server. Keep Hysteria2 in its own group and exclude it from the all-servers profile with `AUTO_SERVER_EXCLUDE_PROTOCOLS=hysteria`.
 
 ## Geo files (routing data)
 

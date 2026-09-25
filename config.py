@@ -174,6 +174,31 @@ EXTRA_SUB_ENABLED = config("EXTRA_SUB_ENABLED", cast=bool, default=False)
 EXTRA_SUB_LINKS = config("EXTRA_SUB_LINKS", default="")
 EXTRA_SUB_REQUIRED_INBOUND = config("EXTRA_SUB_REQUIRED_INBOUND", default="")
 
+# "⚡ AUTO" profiles in v2ray-json subscriptions: client-side leastPing balancer over several servers
+AUTO_SERVER_ENABLED = config("AUTO_SERVER_ENABLED", cast=bool, default=False)
+AUTO_SERVER_GROUPS_RAW = config("AUTO_SERVER_GROUPS", default="")
+AUTO_SERVER_ALL_REMARK = config("AUTO_SERVER_ALL_REMARK", default="").strip()
+AUTO_SERVER_EXCLUDE_PROTOCOLS = [
+    p.strip().lower() for p in config("AUTO_SERVER_EXCLUDE_PROTOCOLS", default="").split(",") if p.strip()
+]
+AUTO_SERVER_PROBE_INTERVAL = config("AUTO_SERVER_PROBE_INTERVAL", default="1m").strip() or "1m"
+
+
+def parse_auto_server_groups(raw: str) -> list:
+    """"Name=TAG1,TAG2;Name2=TAG3" -> [("Name", ["TAG1", "TAG2"]), ("Name2", ["TAG3"])].
+    Tags may contain spaces, so they are split on commas only."""
+    groups = []
+    for part in raw.split(";"):
+        name, sep, tags = part.partition("=")
+        name = name.strip()
+        tags = [tag.strip() for tag in tags.split(",") if tag.strip()]
+        if sep and name and tags:
+            groups.append((name, tags))
+    return groups
+
+
+AUTO_SERVER_GROUPS = parse_auto_server_groups(AUTO_SERVER_GROUPS_RAW)
+
 # discord webhook log
 DISCORD_WEBHOOK_URL = config("DISCORD_WEBHOOK_URL", default="")
 
