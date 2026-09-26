@@ -117,6 +117,83 @@ def generate_v2ray_json_subscription(
     return conf.render(reverse=False)
 
 
+
+# formats that can carry a stub entry as a real proxy (plain clash has no vless/hysteria2)
+_STUB_FORMATS = ("v2ray-json", "clash-meta", "sing-box")
+# transports clash-meta/sing-box builders skip silently
+_STUB_UNSUPPORTED_NETWORKS = ("kcp", "splithttp", "xhttp")
+
+
+def _parsed_link_as_inbound(parsed: dict) -> tuple:
+    """Shape a parse_share_link() result like the host inbound that
+    process_inbounds_and_tags() passes to a configuration's add()."""
+    params = parsed.get("params") or {}
+    ais = params.get("insecure", params.get("allowInsecure")) in ("1", "true", "True")
+    if parsed["protocol"] == "hysteria2":
+        inbound = {"protocol": "hysteria2", "network": "hysteria", "port": parsed["port"],
+                   "sni": params.get("sni", ""), "ais": ais, "obfs_password": parsed.get("obfs_password")}
+        return inbound, {"password": parsed["credential"]}
+
+    inbound = {
+        "protocol": "vless",
+        "network": params.get("type") or "tcp",
+        "port": parsed["port"],
+        "tls": params.get("security") or "none",
+        "sni": params.get("sni", ""),
+        "host": params.get("host", ""),
+        "path": params.get("path", "") or params.get("serviceName", ""),
+        "header_type": params.get("headerType") or "none",
+        "alpn": params.get("alpn") or None,
+        "fp": params.get("fp", ""),
+        "pbk": params.get("pbk", ""),
+        "sid": params.get("sid", ""),
+        "ais": ais,
+        "mux_enable": False,
+        "random_user_agent": False,
+    }
+    return inbound, {"id": parsed["credential"], "flow": params.get("flow", "")}
+
+
+def generate_stub_subscription(
+        stub_links: list,
+        config_format: str,
+        reverse: bool = False,
+        user: "UserResponse" = None,
+) -> Union[str, None]:
+    """Stub entries (EXPIRED/DELETED/REVOKED_SUB_LINK with a title each) as
+    real proxies of `config_format`, followed by the user's own configs when
+    `user` is given. Returns None when the format can't carry every stub
+    entry, so the caller can fall back to the flat v2ray stub."""
+    if config_format not in _STUB_FORMATS or not stub_links:
+        return None
+    parsed_links = [parse_share_link(link) for link in stub_links]
+    if any(parsed is None for parsed in parsed_links):
+        return None
+
+    if config_format == "v2ray-json":
+        conf = V2rayJsonConfig()
+    else:
+        if any(parsed["protocol"] == "vless" and (parsed["params"].get("type") or "tcp") in _STUB_UNSUPPORTED_NETWORKS
+               for parsed in parsed_links):
+            return None
+        conf = ClashMetaConfiguration() if config_format == "clash-meta" else SingBoxConfiguration()
+
+    for parsed in parsed_links:
+        if config_format == "v2ray-json":
+            conf.add_parsed_link(parsed)
+        else:
+            inbound, settings = _parsed_link_as_inbound(parsed)
+            conf.add(remark=parsed["remark"] or parsed["address"], address=parsed["address"],
+                     inbound=inbound, settings=settings)
+
+    if user is None:
+        return conf.render(reverse=reverse)
+
+    if config_format == "v2ray-json":
+        conf.username = user.username
+    format_variables = setup_format_variables(user.__dict__)
+    return process_inbounds_and_tags(user.inbounds, user.proxies, format_variables, conf=conf, reverse=reverse)
+
 def generate_subscription(
         user: "UserResponse",
         config_format: Literal["v2ray", "clash-meta", "clash", "sing-box", "outline", "v2ray-json"],

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from app.db import Session, crud, get_db
 from app.dependencies import ResolvedSub, SubState, get_resolved_sub, get_validated_sub, validate_dates
 from app.models.user import SubscriptionUserResponse, UserResponse
-from app.subscription.share import encode_title, generate_subscription
+from app.subscription.share import encode_title, generate_stub_subscription, generate_subscription
 from app.templates import render_template
 from config import (
     DELETED_SUB_ANNOUNCE,
@@ -79,9 +79,8 @@ def get_extra_sub_links(user: "UserResponse") -> list:
 
     Only for strictly active users (not on_hold/expired/limited/disabled), and
     only when EXTRA_SUB_REQUIRED_INBOUND is empty or the user has at least one
-    of the listed inbound tags. Clients routed to v2ray-json (any
-    USE_CUSTOM_JSON_* setting) never see these links, since that format is
-    built from parsed proxy objects, not raw links - this is expected, not a bug.
+    of the listed inbound tags. Flat v2ray gets them as raw links, v2ray-json
+    as parsed outbounds; other formats never include them.
     """
     if not EXTRA_SUB_ENABLED or not EXTRA_SUB_LINKS_LIST:
         return []
@@ -105,15 +104,79 @@ def build_v2ray_response(user: "UserResponse", headers: dict, extra_links: list)
     return Response(content=encoded, media_type="text/plain", headers=headers)
 
 
-def build_expired_subscription_response(user: "UserResponse", request: Request) -> Response:
-    titles = [t.strip() for t in EXPIRED_SUB_TITLES.split("|") if t.strip()]
-    stub_links = "\n".join(
-        f"{EXPIRED_SUB_LINK}#{urllib.parse.quote(title)}"
-        for title in titles
-    )
-    raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False)
-    combined = stub_links + "\n" + raw_conf.lstrip()
-    encoded = base64.b64encode(combined.encode()).decode()
+def resolve_client_format(user_agent: str) -> tuple:
+    """(config_format, reverse) served to a client, picked by its User-Agent."""
+    if re.match(r'^([Cc]lash-verge|[Cc]lash[-\.]?[Mm]eta|[Ff][Ll][Cc]lash|[Mm]ihomo)', user_agent):
+        return "clash-meta", False
+    if re.match(r'^([Cc]lash|[Ss]tash)', user_agent):
+        return "clash", False
+    if re.match(r'^(SFA|SFI|SFM|SFT|[Kk]aring|[Hh]iddify[Nn]ext|[Ii]n[Hh]ive)', user_agent):
+        return "sing-box", False
+    if re.match(r'^(SS|SSR|SSD|SSS|Outline|Shadowsocks|SSconf)', user_agent):
+        return "outline", False
+
+    if match := re.match(r'^v2rayN/(\d+\.\d+)', user_agent):
+        if (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYN) and LooseVersion(match.group(1)) >= LooseVersion("6.40"):
+            return "v2ray-json", False
+        return "v2ray", False
+
+    if match := re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent):
+        if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYNG:
+            if LooseVersion(match.group(1)) >= LooseVersion("1.8.29"):
+                return "v2ray-json", False
+            if LooseVersion(match.group(1)) >= LooseVersion("1.8.18"):
+                return "v2ray-json", True
+        return "v2ray", False
+
+    if re.match(r'^[Ss]treisand', user_agent):
+        return ("v2ray-json" if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_STREISAND else "v2ray"), False
+
+    if match := re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent):
+        if (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_HAPP) and LooseVersion(match.group(1)) >= LooseVersion("1.63.1"):
+            return "v2ray-json", False
+        return "v2ray", False
+
+    if (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_INCY) and re.match(r'^INCY/', user_agent):
+        return "v2ray-json", False
+
+    return "v2ray", False
+
+
+def build_subscription_response(user: "UserResponse", headers: dict, config_format: str, reverse: bool) -> Response:
+    """The user's real subscription in `config_format`, with EXTRA_SUB_LINKS
+    for the formats that carry them."""
+    extra_links = get_extra_sub_links(user)
+    if config_format == "v2ray":
+        return build_v2ray_response(user, headers, extra_links)
+    conf = generate_subscription(user=user, config_format=config_format, as_base64=False, reverse=reverse,
+                                 extra_links=extra_links if config_format == "v2ray-json" else None)
+    return Response(content=conf, media_type=client_config[config_format]["media_type"], headers=headers)
+
+
+def make_stub_links(link: str, titles: str) -> list:
+    return [f"{link}#{urllib.parse.quote(title.strip())}" for title in titles.split("|") if title.strip()]
+
+
+def build_stub_content(stub_links: list, config_format: str, reverse: bool, user: "UserResponse" = None) -> tuple:
+    """(content, media_type) of a stub subscription: in the client's own
+    format when it can carry the stub link, else the flat base64 v2ray list
+    every v2ray-style client understands."""
+    conf = generate_stub_subscription(stub_links, config_format, reverse=reverse, user=user)
+    if conf is not None:
+        return conf, client_config[config_format]["media_type"]
+
+    lines = list(stub_links)
+    if user is not None:
+        raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False)
+        lines.append(raw_conf.lstrip())
+    return base64.b64encode("\n".join(lines).encode()).decode(), "text/plain"
+
+
+def build_expired_subscription_response(
+    user: "UserResponse", request: Request, config_format: str = "v2ray", reverse: bool = False,
+) -> Response:
+    stub_links = make_stub_links(EXPIRED_SUB_LINK, EXPIRED_SUB_TITLES)
+    content, media_type = build_stub_content(stub_links, config_format, reverse, user=user)
 
     support_url = EXPIRED_SUB_SUPPORT_URL or SUB_SUPPORT_URL
     announce_text = EXPIRED_SUB_ANNOUNCE.replace("\\n", "\n") if EXPIRED_SUB_ANNOUNCE else None
@@ -129,7 +192,7 @@ def build_expired_subscription_response(user: "UserResponse", request: Request) 
         ),
         **({"announce": encode_title(announce_text)} if announce_text else {}),
     }
-    return Response(content=encoded, media_type="text/plain", headers=headers)
+    return Response(content=content, media_type=media_type, headers=headers)
 
 
 def build_stub_subscription_response(
@@ -141,6 +204,8 @@ def build_stub_subscription_response(
     support_url: str,
     update_interval: str,
     announce: str,
+    config_format: str = "v2ray",
+    reverse: bool = False,
 ) -> Response:
     """Stub subscription for a signature-valid token that can't be served a
     real config: user deleted (DELETED_SUB_*) or link revoked
@@ -148,12 +213,7 @@ def build_stub_subscription_response(
     touches real account data - so this stays safe to call regardless of
     whether a live user exists behind the token.
     """
-    stub_titles = [t.strip() for t in titles.split("|") if t.strip()]
-    stub_links = "\n".join(
-        f"{link}#{urllib.parse.quote(title)}"
-        for title in stub_titles
-    )
-    encoded = base64.b64encode(stub_links.encode()).decode()
+    content, media_type = build_stub_content(make_stub_links(link, titles), config_format, reverse)
 
     resolved_support_url = support_url or SUB_SUPPORT_URL
     announce_text = announce.replace("\\n", "\n") if announce else None
@@ -169,7 +229,26 @@ def build_stub_subscription_response(
         ),
         **({"announce": encode_title(announce_text)} if announce_text else {}),
     }
-    return Response(content=encoded, media_type="text/plain", headers=headers)
+    return Response(content=content, media_type=media_type, headers=headers)
+
+
+def build_response_headers(user: "UserResponse", request: Request) -> dict:
+    return {
+        "content-disposition": f'attachment; filename="{user.username}"',
+        "profile-web-page-url": str(request.url),
+        "support-url": SUB_SUPPORT_URL,
+        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
+        "profile-update-interval": SUB_UPDATE_INTERVAL,
+        "subscription-userinfo": "; ".join(
+            f"{key}={val}"
+            for key, val in get_subscription_user_info(user).items()
+        ),
+        **({"announce": encode_title(SUB_ANNOUNCE.replace("\\n", "\n"))} if SUB_ANNOUNCE else {}),
+    }
+
+
+def shows_expired_stub(user: "UserResponse") -> bool:
+    return EXPIRED_SUB_ENABLED and bool(EXPIRED_SUB_LINK) and user.status in ("expired", "limited")
 
 
 @router.get("/{token}/")
@@ -182,6 +261,7 @@ def user_subscription(
 ):
     """Provides a subscription link based on the user agent (Clash, V2Ray, etc.)."""
     accept_header = request.headers.get("Accept", "")
+    config_format, reverse = resolve_client_format(user_agent)
 
     if sub_result.state is SubState.DELETED:
         if "text/html" in accept_header:
@@ -191,7 +271,7 @@ def user_subscription(
             sub_result.username, request,
             link=DELETED_SUB_LINK, titles=DELETED_SUB_TITLES,
             support_url=DELETED_SUB_SUPPORT_URL, update_interval=DELETED_SUB_UPDATE_INTERVAL,
-            announce=DELETED_SUB_ANNOUNCE,
+            announce=DELETED_SUB_ANNOUNCE, config_format=config_format, reverse=reverse,
         )
 
     if sub_result.state is SubState.REVOKED:
@@ -203,7 +283,7 @@ def user_subscription(
             sub_result.username, request,
             link=REVOKED_SUB_LINK, titles=REVOKED_SUB_TITLES,
             support_url=REVOKED_SUB_SUPPORT_URL, update_interval=REVOKED_SUB_UPDATE_INTERVAL,
-            announce=REVOKED_SUB_ANNOUNCE,
+            announce=REVOKED_SUB_ANNOUNCE, config_format=config_format, reverse=reverse,
         )
 
     dbuser = sub_result.dbuser
@@ -219,80 +299,10 @@ def user_subscription(
 
     crud.update_user_sub(db, dbuser, user_agent)
 
-    if EXPIRED_SUB_ENABLED and EXPIRED_SUB_LINK and user.status in ("expired", "limited"):
-        return build_expired_subscription_response(user, request)
+    if shows_expired_stub(user):
+        return build_expired_subscription_response(user, request, config_format, reverse)
 
-    response_headers = {
-        "content-disposition": f'attachment; filename="{user.username}"',
-        "profile-web-page-url": str(request.url),
-        "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
-        "profile-update-interval": SUB_UPDATE_INTERVAL,
-        "subscription-userinfo": "; ".join(
-            f"{key}={val}"
-            for key, val in get_subscription_user_info(user).items()
-        ),
-        **({"announce": encode_title(SUB_ANNOUNCE.replace("\\n", "\n"))} if SUB_ANNOUNCE else {}),
-    }
-
-    extra_links = get_extra_sub_links(user)
-
-    if re.match(r'^([Cc]lash-verge|[Cc]lash[-\.]?[Mm]eta|[Ff][Ll][Cc]lash|[Mm]ihomo)', user_agent):
-        conf = generate_subscription(user=user, config_format="clash-meta", as_base64=False, reverse=False)
-        return Response(content=conf, media_type="text/yaml", headers=response_headers)
-
-    elif re.match(r'^([Cc]lash|[Ss]tash)', user_agent):
-        conf = generate_subscription(user=user, config_format="clash", as_base64=False, reverse=False)
-        return Response(content=conf, media_type="text/yaml", headers=response_headers)
-
-    elif re.match(r'^(SFA|SFI|SFM|SFT|[Kk]aring|[Hh]iddify[Nn]ext|[Ii]n[Hh]ive)', user_agent):
-        conf = generate_subscription(user=user, config_format="sing-box", as_base64=False, reverse=False)
-        return Response(content=conf, media_type="application/json", headers=response_headers)
-
-    elif re.match(r'^(SS|SSR|SSD|SSS|Outline|Shadowsocks|SSconf)', user_agent):
-        conf = generate_subscription(user=user, config_format="outline", as_base64=False, reverse=False)
-        return Response(content=conf, media_type="application/json", headers=response_headers)
-
-    elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYN) and re.match(r'^v2rayN/(\d+\.\d+)', user_agent):
-        version_str = re.match(r'^v2rayN/(\d+\.\d+)', user_agent).group(1)
-        if LooseVersion(version_str) >= LooseVersion("6.40"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
-            return Response(content=conf, media_type="application/json", headers=response_headers)
-        else:
-            return build_v2ray_response(user, response_headers, extra_links)
-
-    elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_V2RAYNG) and re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent):
-        version_str = re.match(r'^v2rayNG/(\d+\.\d+\.\d+)', user_agent).group(1)
-        if LooseVersion(version_str) >= LooseVersion("1.8.29"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
-            return Response(content=conf, media_type="application/json", headers=response_headers)
-        elif LooseVersion(version_str) >= LooseVersion("1.8.18"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=True, extra_links=extra_links)
-            return Response(content=conf, media_type="application/json", headers=response_headers)
-        else:
-            return build_v2ray_response(user, response_headers, extra_links)
-
-    elif re.match(r'^[Ss]treisand', user_agent):
-        if USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_STREISAND:
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
-            return Response(content=conf, media_type="application/json", headers=response_headers)
-        else:
-            return build_v2ray_response(user, response_headers, extra_links)
-
-    elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_HAPP) and re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent):
-        version_str = re.match(r'^Happ/(\d+\.\d+\.\d+)', user_agent).group(1)
-        if LooseVersion(version_str) >= LooseVersion("1.63.1"):
-            conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
-            return Response(content=conf, media_type="application/json", headers=response_headers)
-        else:
-            return build_v2ray_response(user, response_headers, extra_links)
-
-    elif (USE_CUSTOM_JSON_DEFAULT or USE_CUSTOM_JSON_FOR_INCY) and re.match(r'^INCY/', user_agent):
-        conf = generate_subscription(user=user, config_format="v2ray-json", as_base64=False, reverse=False, extra_links=extra_links)
-        return Response(content=conf, media_type="application/json", headers=response_headers)
-
-    else:
-        return build_v2ray_response(user, response_headers, extra_links)
+    return build_subscription_response(user, build_response_headers(user, request), config_format, reverse)
 
 
 @router.get("/{token}/info", response_model=SubscriptionUserResponse)
@@ -328,25 +338,9 @@ def user_subscription_with_client_type(
 ):
     """Provides a subscription link based on the specified client type (e.g., Clash, V2Ray)."""
     user: UserResponse = UserResponse.model_validate(dbuser)
+    reverse = client_config[client_type]["reverse"]
 
-    response_headers = {
-        "content-disposition": f'attachment; filename="{user.username}"',
-        "profile-web-page-url": str(request.url),
-        "support-url": SUB_SUPPORT_URL,
-        "profile-title": encode_title(f"{SUB_PROFILE_TITLE} {SUB_PROFILE_TITLE_EMOJI} {user.username}"),
-        "profile-update-interval": SUB_UPDATE_INTERVAL,
-        "subscription-userinfo": "; ".join(
-            f"{key}={val}"
-            for key, val in get_subscription_user_info(user).items()
-        ),
-        **({"announce": encode_title(SUB_ANNOUNCE.replace("\\n", "\n"))} if SUB_ANNOUNCE else {}),
-    }
+    if shows_expired_stub(user):
+        return build_expired_subscription_response(user, request, client_type, reverse)
 
-    config = client_config.get(client_type)
-    conf = generate_subscription(user=user,
-                                 config_format=config["config_format"],
-                                 as_base64=config["as_base64"],
-                                 reverse=config["reverse"],
-                                 extra_links=get_extra_sub_links(user) if client_type == "v2ray-json" else None)
-
-    return Response(content=conf, media_type=config["media_type"], headers=response_headers)
+    return build_subscription_response(user, build_response_headers(user, request), client_type, reverse)
