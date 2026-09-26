@@ -340,7 +340,7 @@ server {
 | REVOKED_SUB_UPDATE_INTERVAL              | 向吊销链接展示的订阅更新间隔，单位为小时（默认：`12`）                                                                       |
 | REVOKED_SUB_ANNOUNCE                     | 随占位订阅一起发送给吊销链接的公告头                                                                                        |
 | EXTRA_SUB_ENABLED                        | 为活跃用户在 v2ray 格式订阅末尾追加额外链接（默认：`False`）                                                                 |
-| EXTRA_SUB_LINKS                          | 以 `\|` 分隔的链接，原样（已编码）追加到活跃用户订阅末尾                                                                     |
+| EXTRA_SUB_LINKS                          | 以 `\|` 分隔的链接，追加到活跃用户订阅末尾                                                                     |
 | EXTRA_SUB_REQUIRED_INBOUND               | 以逗号分隔的入站标记，用户需拥有其中至少一个才能获得 `EXTRA_SUB_LINKS`；留空表示所有活跃用户都可获得                                |
 
 > `EXTRA_SUB_LINKS` 以及所有 `*_SUB_LINK`/`*_SUB_TITLES` 的值在 `.env` 中都必须用引号包裹，例如 `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`：不加引号的 `#` 会在 `.env` 中开始一行注释并截断该行其余内容，而分享链接通常包含 `#remark` 和 `&param=value`。

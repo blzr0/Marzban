@@ -349,7 +349,7 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 | REVOKED_SUB_UPDATE_INTERVAL              | Subscription update interval advertised for revoked links, in hours (default: `12`)                                      |
 | REVOKED_SUB_ANNOUNCE                     | Announce header sent along with the stub subscription for revoked links                                                  |
 | EXTRA_SUB_ENABLED                        | Append extra links to the end of v2ray-format subscriptions for active users (default: `False`)                          |
-| EXTRA_SUB_LINKS                          | Pipe (`\|`)-separated links appended as-is (already URL-encoded) to active users' v2ray subscriptions                     |
+| EXTRA_SUB_LINKS                          | Pipe (`\|`)-separated links appended to the end of active users' v2ray subscriptions                                    |
 | EXTRA_SUB_REQUIRED_INBOUND               | Comma-separated inbound tags required for a user to receive `EXTRA_SUB_LINKS`; empty means all active users get them     |
 | AUTO_SERVER_ENABLED                      | Add "⚡ AUTO" profiles to v2ray-json subscriptions: the client picks the server with the lowest ping (default: `False`)    |
 | AUTO_SERVER_GROUPS                       | Explicit AUTO groups: `Name=TAG1,TAG2;Name2=TAG3`; empty means one automatic group per protocol/transport/security       |
@@ -359,7 +359,11 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 
 > `EXTRA_SUB_LINKS` and every `*_SUB_LINK`/`*_SUB_TITLES` value must be wrapped in quotes in `.env`, e.g. `EXTRA_SUB_LINKS="vless://...#remark|vless://...#remark"`: a bare `#` starts a `.env` comment and truncates the rest of the line, and share links routinely contain `#remark` and `&param=value`.
 >
+> The server name after `#` can be written as-is - Cyrillic, spaces and emoji included, e.g. `#🇩🇪 Germany #2`; percent-encoded names work too. Only `|` can't be used in a name, since it separates the links.
+>
 > `EXTRA_SUB_LINKS` is only appended to the flat **v2ray** and **v2ray-json** subscription formats, and only for users whose status is `active` (not `on_hold`/`expired`/`limited`/`disabled`). Clash, Clash-Meta, sing-box and Outline subscriptions never include it, since those formats are built from parsed proxy objects rather than raw links.
+>
+> Stub subscriptions (`EXPIRED_SUB_*`, `DELETED_SUB_*`, `REVOKED_SUB_*`) are served in the client's own format - v2ray-json, Clash Meta/Mihomo or sing-box - when the stub link is a `vless://` or `hysteria2://` link that format supports; otherwise, and for every other client, as the flat v2ray link list.
 
 ## Hysteria2 support
 
