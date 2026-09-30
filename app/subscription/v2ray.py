@@ -1353,6 +1353,19 @@ class V2rayJsonConfig(str):
                 mode=params.get("mode", "auto"),
             )
 
+            # XHTTP links carry their tuning (xmux, padding obfuscation,
+            # session/seq placement, uplink method...) as a JSON `extra`;
+            # use it verbatim instead of the panel's defaults, the server
+            # behind the link is configured to match it
+            xhttp_settings = outbound["streamSettings"].get(f"{net}Settings")
+            if net in ("xhttp", "splithttp") and xhttp_settings is not None and params.get("extra"):
+                try:
+                    extra = json.loads(params["extra"])
+                except ValueError:
+                    extra = None
+                if isinstance(extra, dict):
+                    xhttp_settings["extra"] = extra
+
         elif protocol == "hysteria2":
             outbound = self.hysteria2_outbound(
                 address=address,
