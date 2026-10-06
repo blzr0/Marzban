@@ -1,10 +1,8 @@
 import { Box, BoxProps, Card, chakra, HStack, Text } from "@chakra-ui/react";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   ChartBarIcon,
-  ChartPieIcon,
   CpuChipIcon,
+  ServerStackIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import { useDashboard } from "contexts/DashboardContext";
@@ -20,16 +18,10 @@ const TotalUsersIcon = chakra(UsersIcon, {
 const NetworkIcon = chakra(ChartBarIcon, {
   baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
 });
-const MemoryIcon = chakra(ChartPieIcon, {
-  baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
-});
 const CpuIcon = chakra(CpuChipIcon, {
   baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
 });
-const DownloadIcon = chakra(ArrowDownIcon, {
-  baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
-});
-const UploadIcon = chakra(ArrowUpIcon, {
+const NodesIcon = chakra(ServerStackIcon, {
   baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
 });
 
@@ -57,7 +49,9 @@ const StatisticCard: FC<PropsWithChildren<StatisticCardProps>> = ({
       width="full"
       display="flex"
       justifyContent="space-between"
+      alignItems="center"
       flexDirection="row"
+      h="full"
     >
       <HStack alignItems="center" columnGap="4">
         <Box
@@ -103,16 +97,39 @@ const StatisticCard: FC<PropsWithChildren<StatisticCardProps>> = ({
           {title}
         </Text>
       </HStack>
-      <Box fontSize="3xl" fontWeight="semibold" mt="2">
+      <Box fontSize="3xl" fontWeight="semibold">
         {content}
       </Box>
     </Card>
   );
 };
 
+const SubLine: FC<PropsWithChildren<{ color?: string }>> = ({ children, color }) => (
+  <Text
+    fontSize="sm"
+    fontWeight="medium"
+    textAlign="right"
+    color={color || "gray.500"}
+    _dark={{ color: color ? color.replace(".500", ".300") : "gray.400" }}
+  >
+    {children}
+  </Text>
+);
+
+const MainValue: FC<{ value: ReactNode; suffix?: ReactNode }> = ({ value, suffix }) => (
+  <HStack alignItems="flex-end" justifyContent="flex-end" spacing={1}>
+    <Text lineHeight="1.1">{value}</Text>
+    {suffix && (
+      <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block">
+        {suffix}
+      </Text>
+    )}
+  </HStack>
+);
+
 export const StatisticsQueryKey = "statistics-query-key";
 export const Statistics: FC<BoxProps> = (props) => {
-  const { version } = useDashboard();
+  const { version, onEditingNodes } = useDashboard();
   const { data: systemData } = useQuery({
     queryKey: StatisticsQueryKey,
     queryFn: () => fetch("/system"),
@@ -123,10 +140,17 @@ export const Statistics: FC<BoxProps> = (props) => {
     },
   });
   const { t } = useTranslation();
+  // Node counts are only sent to sudo admins
+  const showNodes = systemData && systemData.nodes_total != null;
+  const nodesDown = showNodes ? systemData.nodes_total - systemData.nodes_connected : 0;
   return (
     <Box
       display="grid"
-      gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+      gridTemplateColumns={{
+        base: "1fr",
+        md: "repeat(2, 1fr)",
+        xl: `repeat(${showNodes ? 4 : 3}, 1fr)`,
+      }}
       gap={4}
       {...props}
     >
@@ -134,12 +158,15 @@ export const Statistics: FC<BoxProps> = (props) => {
         title={t("activeUsers")}
         content={
           systemData && (
-            <HStack alignItems="flex-end">
-              <Text>{numberWithCommas(systemData.users_active)}</Text>
-              <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block" pb="5px">
-                / {numberWithCommas(systemData.total_user)}
-              </Text>
-            </HStack>
+            <Box>
+              <MainValue
+                value={numberWithCommas(systemData.users_active)}
+                suffix={`/ ${numberWithCommas(systemData.total_user)}`}
+              />
+              <SubLine color="green.500">
+                {t("statistics.onlineNow", { count: systemData.online_now })}
+              </SubLine>
+            </Box>
           )
         }
         icon={<TotalUsersIcon />}
@@ -147,67 +174,66 @@ export const Statistics: FC<BoxProps> = (props) => {
       <StatisticCard
         title={t("dataUsage")}
         content={
-          systemData &&
-          formatBytes(systemData.incoming_bandwidth + systemData.outgoing_bandwidth)
+          systemData && (
+            <Box>
+              <MainValue
+                value={formatBytes(systemData.incoming_bandwidth + systemData.outgoing_bandwidth)}
+              />
+              {systemData.usage_24h != null && (
+                <SubLine>
+                  {t("statistics.last24h", { usage: formatBytes(systemData.usage_24h) })}
+                </SubLine>
+              )}
+            </Box>
+          )
         }
         icon={<NetworkIcon />}
       />
+      {showNodes && (
+        <Box
+          as="button"
+          display="block"
+          w="full"
+          textAlign="left"
+          onClick={() => onEditingNodes(true)}
+          borderRadius="12px"
+          _hover={{ opacity: 0.85 }}
+        >
+          <StatisticCard
+            title={t("statistics.nodes")}
+            content={
+              <Box>
+                <MainValue
+                  value={systemData.nodes_connected}
+                  suffix={`/ ${systemData.nodes_total}`}
+                />
+                <SubLine color={nodesDown ? "red.500" : "green.500"}>
+                  {nodesDown
+                    ? t("statistics.nodesDown", { count: nodesDown })
+                    : t("statistics.allNodesUp")}
+                </SubLine>
+              </Box>
+            }
+            icon={<NodesIcon />}
+          />
+        </Box>
+      )}
       <StatisticCard
-        title={t("memoryUsage")}
+        title={t("statistics.master")}
         content={
           systemData && (
-            <HStack alignItems="flex-end">
-              <Text>{formatBytes(systemData.mem_used, 1, true)[0]}</Text>
-              <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block" pb="5px">
-                {formatBytes(systemData.mem_used, 1, true)[1]} /{" "}
-                {formatBytes(systemData.mem_total, 1)}
-              </Text>
-            </HStack>
-          )
-        }
-        icon={<MemoryIcon />}
-      />
-      <StatisticCard
-        title={t("cpuUsage")}
-        content={
-          systemData && (
-            <HStack alignItems="flex-end">
-              <Text>{systemData.cpu_usage.toFixed(1)}%</Text>
-              <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block" pb="5px">
-                {systemData.cpu_cores} cores
-              </Text>
-            </HStack>
+            <Box>
+              <MainValue
+                value={`${systemData.cpu_usage.toFixed(1)}%`}
+                suffix={`${systemData.cpu_cores} cores`}
+              />
+              <SubLine>
+                RAM {formatBytes(systemData.mem_used, 1)} / {formatBytes(systemData.mem_total, 1)}
+              </SubLine>
+            </Box>
           )
         }
         icon={<CpuIcon />}
-      />
-      <StatisticCard
-        title={t("downloadSpeed")}
-        content={
-          systemData && (
-            <HStack alignItems="flex-end">
-              <Text>{(systemData.incoming_bandwidth_speed * 8 / 1_000_000).toFixed(1)}</Text>
-              <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block" pb="5px">
-                Mbit/s
-              </Text>
-            </HStack>
-          )
-        }
-        icon={<DownloadIcon />}
-      />
-      <StatisticCard
-        title={t("uploadSpeed")}
-        content={
-          systemData && (
-            <HStack alignItems="flex-end">
-              <Text>{(systemData.outgoing_bandwidth_speed * 8 / 1_000_000).toFixed(1)}</Text>
-              <Text fontWeight="normal" fontSize="lg" as="span" display="inline-block" pb="5px">
-                Mbit/s
-              </Text>
-            </HStack>
-          )
-        }
-        icon={<UploadIcon />}
       />
     </Box>
   );

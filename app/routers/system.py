@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Dict, List, Union
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,11 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from app import __version__, xray
 from app.db import Session, crud, get_db
 from app.models.admin import Admin
+from app.models.node import NodeStatus
 from app.models.proxy import ProxyHost, ProxyInbound, ProxyTypes
 from app.models.system import SystemStats
 from app.models.user import UserStatus
 from app.utils import responses
 from app.utils.system import cpu_usage, memory_usage, realtime_bandwidth
+from config import DISABLE_RECORDING_NODE_USAGE
 
 router = APIRouter(tags=["System"], prefix="/api", responses={401: responses._401})
 
@@ -41,7 +44,21 @@ def get_system_stats(
         db, status=UserStatus.limited, admin=dbadmin if not admin.is_sudo else None
     )
     online_users = crud.count_online_users(db, 24)
+    online_now = crud.count_online_users(db, 5 / 60)
     realtime_bandwidth_stats = realtime_bandwidth()
+
+    # Node usage is recorded in hourly buckets, so this is "the last 24 full
+    # hours plus the current one" rather than an exact rolling window
+    usage_24h = None
+    if not DISABLE_RECORDING_NODE_USAGE:
+        since = (datetime.utcnow() - timedelta(hours=24)).replace(minute=0, second=0, microsecond=0)
+        usage_24h = crud.get_total_nodes_usage(db, since)
+
+    nodes_total = nodes_connected = None
+    if admin.is_sudo:
+        nodes = [n for n in crud.get_nodes(db) if n.status != NodeStatus.disabled]
+        nodes_total = len(nodes)
+        nodes_connected = sum(1 for n in nodes if n.status == NodeStatus.connected)
 
     return SystemStats(
         version=__version__,
@@ -60,6 +77,10 @@ def get_system_stats(
         outgoing_bandwidth=system.downlink,
         incoming_bandwidth_speed=realtime_bandwidth_stats.incoming_bytes,
         outgoing_bandwidth_speed=realtime_bandwidth_stats.outgoing_bytes,
+        online_now=online_now,
+        usage_24h=usage_24h,
+        nodes_total=nodes_total,
+        nodes_connected=nodes_connected,
     )
 
 

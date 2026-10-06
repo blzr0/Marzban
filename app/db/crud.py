@@ -1493,11 +1493,18 @@ def delete_notification_reminder(db: Session, dbreminder: NotificationReminder) 
     return
 
 
-def count_online_users(db: Session, hours: int = 24):
+def count_online_users(db: Session, hours: float = 24):
     twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=hours)
     query = db.query(func.count(User.id)).filter(User.online_at.isnot(
         None), User.online_at >= twenty_four_hours_ago)
     return query.scalar()
+
+
+def get_total_nodes_usage(db: Session, start: datetime) -> int:
+    """Total traffic (uplink + downlink) of the master core and all nodes since `start`."""
+    total = db.query(func.sum(NodeUsage.uplink + NodeUsage.downlink)).filter(
+        NodeUsage.created_at >= start).scalar()
+    return int(total or 0)
 
 
 def get_users_usage_stats(db: Session, admins: Optional[List[str]] = None):
