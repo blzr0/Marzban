@@ -207,17 +207,24 @@ def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     return get_user_queryset(db).filter(User.id == user_id).first()
 
 
+# Never-connected users have no online_at; map them to the epoch so they sort
+# as "least recently online" on every database (NULL ordering differs between
+# PostgreSQL and MySQL/SQLite)
+_online_at_or_epoch = func.coalesce(User.online_at, datetime(1970, 1, 1))
+
 UsersSortingOptions = Enum('UsersSortingOptions', {
     'username': User.username.asc(),
     'used_traffic': User.used_traffic.asc(),
     'data_limit': User.data_limit.asc(),
     'expire': User.expire.asc(),
     'created_at': User.created_at.asc(),
+    'online_at': _online_at_or_epoch.asc(),
     '-username': User.username.desc(),
     '-used_traffic': User.used_traffic.desc(),
     '-data_limit': User.data_limit.desc(),
     '-expire': User.expire.desc(),
     '-created_at': User.created_at.desc(),
+    '-online_at': _online_at_or_epoch.desc(),
 })
 
 

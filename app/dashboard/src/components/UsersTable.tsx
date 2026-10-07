@@ -243,6 +243,9 @@ export const UsersTable: FC<UsersTableProps> = (props) => {
   };
 
   const [statsSort, setStatsSort] = useState<string>("");
+  // A server-side sort picked outside the table (the online card) must win
+  // over a client-side sort by usage stats
+  useEffect(() => setStatsSort(""), [filters.sort]);
 
   const handleStatsSort = (column: string) => {
     if (statsSort.replace("-", "") === column) {

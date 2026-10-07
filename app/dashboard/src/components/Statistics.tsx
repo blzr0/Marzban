@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "react-query";
 import { fetch } from "service/http";
 import { formatBytes, numberWithCommas } from "utils/formatByte";
+import { Sort } from "./UsersTable";
 
 const TotalUsersIcon = chakra(UsersIcon, {
   baseStyle: { w: 5, h: 5, position: "relative", zIndex: "2" },
@@ -127,9 +128,34 @@ const MainValue: FC<{ value: ReactNode; suffix?: ReactNode }> = ({ value, suffix
   </HStack>
 );
 
+const ClickableCard: FC<PropsWithChildren<{ onClick: () => void }>> = ({
+  onClick,
+  children,
+}) => (
+  <Box
+    as="button"
+    display="block"
+    w="full"
+    textAlign="left"
+    onClick={onClick}
+    borderRadius="12px"
+    _hover={{ opacity: 0.85 }}
+  >
+    {children}
+  </Box>
+);
+
+// Like a table column header: online first, then the reverse, then back to
+// the default order
+const nextOnlineSort = (sort: string) => {
+  if (sort === "-online_at") return "online_at";
+  if (sort === "online_at") return "-created_at";
+  return "-online_at";
+};
+
 export const StatisticsQueryKey = "statistics-query-key";
 export const Statistics: FC<BoxProps> = (props) => {
-  const { version, onEditingNodes } = useDashboard();
+  const { version, onEditingNodes, filters, onFilterChange } = useDashboard();
   const { data: systemData } = useQuery({
     queryKey: StatisticsQueryKey,
     queryFn: () => fetch("/system"),
@@ -154,23 +180,30 @@ export const Statistics: FC<BoxProps> = (props) => {
       gap={4}
       {...props}
     >
-      <StatisticCard
-        title={t("activeUsers")}
-        content={
-          systemData && (
-            <Box>
-              <MainValue
-                value={numberWithCommas(systemData.users_active)}
-                suffix={`/ ${numberWithCommas(systemData.total_user)}`}
-              />
-              <SubLine color="green.500">
-                {t("statistics.onlineNow", { count: systemData.online_now })}
-              </SubLine>
-            </Box>
-          )
-        }
-        icon={<TotalUsersIcon />}
-      />
+      <ClickableCard
+        onClick={() => onFilterChange({ sort: nextOnlineSort(filters.sort) })}
+      >
+        <StatisticCard
+          title={t("activeUsers")}
+          content={
+            systemData && (
+              <Box>
+                <MainValue
+                  value={numberWithCommas(systemData.users_active)}
+                  suffix={`/ ${numberWithCommas(systemData.total_user)}`}
+                />
+                <HStack justifyContent="flex-end" spacing={1} color="green.500" _dark={{ color: "green.300" }}>
+                  <Sort sort={filters.sort} column="online_at" />
+                  <SubLine color="green.500">
+                    {t("statistics.onlineNow", { count: systemData.online_now })}
+                  </SubLine>
+                </HStack>
+              </Box>
+            )
+          }
+          icon={<TotalUsersIcon />}
+        />
+      </ClickableCard>
       <StatisticCard
         title={t("dataUsage")}
         content={
@@ -190,15 +223,7 @@ export const Statistics: FC<BoxProps> = (props) => {
         icon={<NetworkIcon />}
       />
       {showNodes && (
-        <Box
-          as="button"
-          display="block"
-          w="full"
-          textAlign="left"
-          onClick={() => onEditingNodes(true)}
-          borderRadius="12px"
-          _hover={{ opacity: 0.85 }}
-        >
+        <ClickableCard onClick={() => onEditingNodes(true)}>
           <StatisticCard
             title={t("statistics.nodes")}
             content={
@@ -216,7 +241,7 @@ export const Statistics: FC<BoxProps> = (props) => {
             }
             icon={<NodesIcon />}
           />
-        </Box>
+        </ClickableCard>
       )}
       <StatisticCard
         title={t("statistics.master")}
