@@ -10,7 +10,7 @@ from fastapi.routing import APIRoute
 
 from config import ALLOWED_ORIGINS, DOCS, XRAY_SUBSCRIPTION_PATH
 
-__version__ = "0.8.42"
+__version__ = "0.8.43"
 
 app = FastAPI(
     title="MarzbanAPI",
