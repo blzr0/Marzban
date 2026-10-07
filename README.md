@@ -363,6 +363,8 @@ By default the app will be run on `http://localhost:8000/dashboard`. You can con
 >
 > `EXTRA_SUB_LINKS` is only appended to the flat **v2ray** and **v2ray-json** subscription formats, and only for users whose status is `active` (not `on_hold`/`expired`/`limited`/`disabled`). Clash, Clash-Meta, sing-box and Outline subscriptions never include it, since those formats are built from parsed proxy objects rather than raw links.
 >
+> The subscription page template gets a `show_keys` variable: `True` when the URL has a `key` query parameter (`/sub/TOKEN?key=1`, `?key`). When the page template comes from `CUSTOM_TEMPLATES_DIRECTORY` and `show_keys` is `False`, the template gets the user with empty `user.links` and `user.proxies`, so no keys reach the HTML. The stock template keeps showing links as before. The HTML page is served with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+>
 > Stub subscriptions (`EXPIRED_SUB_*`, `DELETED_SUB_*`, `REVOKED_SUB_*`) are served in the client's own format - v2ray-json, Clash Meta/Mihomo or sing-box - when the stub link is a `vless://` or `hysteria2://` link that format supports; otherwise, and for every other client, as the flat v2ray link list.
 
 ## Hysteria2 support

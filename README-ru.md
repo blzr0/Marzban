@@ -368,6 +368,8 @@ server {
 >
 > `EXTRA_SUB_LINKS` добавляется только в подписки форматов **v2ray** (плоский список ссылок) и **v2ray-json**, и только пользователям со статусом `active` (не `on_hold`/`expired`/`limited`/`disabled`). В Clash, Clash-Meta, sing-box и Outline эти ссылки никогда не попадают, так как эти форматы строятся из разобранных объектов прокси, а не из сырых ссылок.
 >
+> Шаблон страницы подписки получает переменную `show_keys`: `True`, если в адресе есть параметр `key` (`/sub/TOKEN?key=1`, `?key`). Если шаблон взят из `CUSTOM_TEMPLATES_DIRECTORY` и `show_keys` равен `False`, в шаблон приходит пользователь с пустыми `user.links` и `user.proxies`, так что ключи не попадают в HTML. Стандартный шаблон показывает ссылки как раньше. HTML-страница отдаётся с заголовками `Cache-Control: no-store` и `Referrer-Policy: no-referrer`.
+>
 > Подписки-заглушки (`EXPIRED_SUB_*`, `DELETED_SUB_*`, `REVOKED_SUB_*`) отдаются в формате самого клиента — v2ray-json, Clash Meta/Mihomo или sing-box, — если ссылка заглушки `vless://` или `hysteria2://` и этот формат её поддерживает; иначе, как и всем остальным клиентам, — плоским списком ссылок v2ray.
 
 ## Поддержка Hysteria2

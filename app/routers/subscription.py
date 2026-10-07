@@ -10,7 +10,7 @@ from app.db import Session, crud, get_db
 from app.dependencies import ResolvedSub, SubState, get_resolved_sub, get_validated_sub, validate_dates
 from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_stub_subscription, generate_subscription
-from app.templates import render_template
+from app.templates import is_custom_template, render_template
 from config import (
     DELETED_SUB_ANNOUNCE,
     DELETED_SUB_LINK,
@@ -251,6 +251,22 @@ def shows_expired_stub(user: "UserResponse") -> bool:
     return EXPIRED_SUB_ENABLED and bool(EXPIRED_SUB_LINK) and user.status in ("expired", "limited")
 
 
+def build_subscription_page(user: "UserResponse", request: Request) -> HTMLResponse:
+    """HTML subscription page. `show_keys` is True when the URL has a `key`
+    query parameter (any value). A custom page template gets the user without
+    links and proxy credentials unless `show_keys` is set, so the keys never
+    reach its HTML; the stock template keeps rendering links as before."""
+    show_keys = "key" in request.query_params
+    page_user = user
+    if not show_keys and is_custom_template(SUBSCRIPTION_PAGE_TEMPLATE):
+        # model_copy skips validators: validate_links would regenerate empty links
+        page_user = user.model_copy(update={"links": [], "proxies": {}})
+    return HTMLResponse(
+        render_template(SUBSCRIPTION_PAGE_TEMPLATE, {"user": page_user, "show_keys": show_keys}),
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+
+
 @router.get("/{token}/")
 @router.get("/{token}", include_in_schema=False)
 def user_subscription(
@@ -290,12 +306,7 @@ def user_subscription(
     user: UserResponse = UserResponse.model_validate(dbuser)
 
     if "text/html" in accept_header:
-        return HTMLResponse(
-            render_template(
-                SUBSCRIPTION_PAGE_TEMPLATE,
-                {"user": user}
-            )
-        )
+        return build_subscription_page(user, request)
 
     crud.update_user_sub(db, dbuser, user_agent)
 

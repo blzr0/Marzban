@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Union
 
@@ -19,3 +20,11 @@ env.globals['now'] = datetime.utcnow
 
 def render_template(template: str, context: Union[dict, None] = None) -> str:
     return env.get_template(template).render(context or {})
+
+
+def is_custom_template(template: str) -> bool:
+    """True when `template` resolves to a file from CUSTOM_TEMPLATES_DIRECTORY."""
+    if not CUSTOM_TEMPLATES_DIRECTORY:
+        return False
+    filename = os.path.realpath(env.get_template(template).filename)
+    return filename.startswith(os.path.realpath(CUSTOM_TEMPLATES_DIRECTORY) + os.sep)
