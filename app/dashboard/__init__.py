@@ -12,6 +12,17 @@ build_dir = base_dir / 'build'
 statics_dir = build_dir / 'statics'
 
 
+class CachedStaticFiles(StaticFiles):
+    """Lets browsers reuse dashboard assets for a day without asking again.
+    Locales keep their names across releases, so they are always revalidated."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304) and not path.startswith("locales"):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
+
+
 def build():
     proc = subprocess.Popen(
         ['npm', 'run', 'build', '--',  '--outDir', build_dir, '--assetsDir', 'statics'],
@@ -46,7 +57,7 @@ def run_build():
     )
     app.mount(
         '/statics/',
-        StaticFiles(directory=statics_dir, html=True),
+        CachedStaticFiles(directory=statics_dir, html=True),
         name="statics"
     )
 
