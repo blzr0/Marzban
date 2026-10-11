@@ -284,6 +284,24 @@ def _change_node_status(node_id: int, status: NodeStatus, message: str = None, v
             db.rollback()
 
 
+def mark_node_recovered(node_id: int, node):
+    """Flip a node stuck in `error` back to `connected` once the health check
+    finds its core working: a failed connect_node leaves `error` behind, and
+    nothing else resets it while the node stays reachable."""
+    if _connecting_nodes.get(node_id):
+        return
+    with GetDB() as db:
+        dbnode = crud.get_node_by_id(db, node_id)
+        if not dbnode or dbnode.status != NodeStatus.error:
+            return
+    try:
+        version = node.get_version()
+    except Exception:
+        return
+    _change_node_status(node_id, NodeStatus.connected, version=version)
+    logger.info(f"Node \"{dbnode.name}\" is working again, status set to connected")
+
+
 global _connecting_nodes
 _connecting_nodes = {}
 

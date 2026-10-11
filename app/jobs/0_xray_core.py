@@ -53,10 +53,13 @@ def core_health_check():
             except (ConnectionError, xray_exc.XrayError, AssertionError):
                 if _node_core_recovers(node):
                     logger.info(f"Node {node_id}: Xray API check failed but the core is alive, not restarting")
+                    xray.operations.mark_node_recovered(node_id, node)
                     continue
                 if not config:
                     config = xray.config.include_db_users()
                 xray.operations.restart_node(node_id, config)
+            else:
+                xray.operations.mark_node_recovered(node_id, node)
 
         if not node.connected:
             if not config:

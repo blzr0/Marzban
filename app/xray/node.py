@@ -225,6 +225,7 @@ class ReSTXRayNode:
         try:
             self._open_api()
             self._api.get_sys_stats(timeout=6)
+            self._started = True
             return True
         except Exception:
             return False
