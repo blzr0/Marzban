@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import and_, case, delete, func, or_
-from sqlalchemy.orm import Query, Session, joinedload
+from sqlalchemy.orm import Query, Session, joinedload, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from app.db.models import (
@@ -238,7 +238,8 @@ def get_users(db: Session,
               admin: Optional[Admin] = None,
               admins: Optional[List[str]] = None,
               reset_strategy: Optional[Union[UserDataLimitResetStrategy, list]] = None,
-              return_with_count: bool = False) -> Union[List[User], Tuple[List[User], int]]:
+              return_with_count: bool = False,
+              for_response: bool = False) -> Union[List[User], Tuple[List[User], int]]:
     """
     Retrieves users based on various filters and options.
 
@@ -254,11 +255,19 @@ def get_users(db: Session,
         admins (Optional[List[str]]): List of admin usernames to filter users by.
         reset_strategy (Optional[Union[UserDataLimitResetStrategy, list]]): Data limit reset strategy to filter by.
         return_with_count (bool): Whether to return the total count of users.
+        for_response (bool): Eager-load the relations UserResponse reads.
 
     Returns:
         Union[List[User], Tuple[List[User], int]]: List of users or tuple of users and total count.
     """
     query = get_user_queryset(db)
+    if for_response:
+        # Load what UserResponse reads per user in a few batched queries
+        # instead of three lazy loads per user
+        query = query.options(
+            selectinload(User.usage_logs),
+            selectinload(User.proxies).selectinload(Proxy.excluded_inbounds),
+        )
 
     if search:
         query = query.filter(or_(User.username.ilike(f"%{search}%"), User.note.ilike(f"%{search}%")))

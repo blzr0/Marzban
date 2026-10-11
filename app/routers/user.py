@@ -236,6 +236,7 @@ def get_users(
         sort=sort,
         admins=owner if admin.is_sudo else [admin.username],
         return_with_count=True,
+        for_response=True,
     )
 
     return {"users": users, "total": count}
