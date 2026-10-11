@@ -13,6 +13,11 @@ import { queryClient } from "utils/react-query";
 import { updateThemeColor } from "utils/themeColor";
 import { theme } from "../chakra.config";
 import App from "./App";
+import "@fontsource/inter/300";
+import "@fontsource/inter/400";
+import "@fontsource/inter/500";
+import "@fontsource/inter/600";
+import "@fontsource/inter/700";
 import "index.scss";
 
 dayjs.extend(Timezone);
