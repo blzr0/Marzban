@@ -904,7 +904,7 @@ class V2rayJsonConfig(str):
 
         return quicSettings
 
-    def kcp_config(self, seed=None, host=None, header=None) -> dict:
+    def kcp_config(self, seed=None, host=None, header=None, finalmask: bool = False) -> dict:
         kcpSettings = copy.deepcopy(self.settings.get("kcpSettings", {
             "header": {
                 "type": "none"
@@ -917,6 +917,13 @@ class V2rayJsonConfig(str):
             "readBufferSize": 2,
             "writeBufferSize": 2,
         }))
+        if finalmask:
+            # header/seed are ignored by Xray 26+ anyway; the Finalmask
+            # chain carries obfuscation/encryption instead
+            kcpSettings.pop("header", None)
+            kcpSettings.pop("seed", None)
+            return kcpSettings
+
         if "header" not in kcpSettings:
             kcpSettings["header"] = {"type": "none"}
 
@@ -928,6 +935,38 @@ class V2rayJsonConfig(str):
             kcpSettings["header"]["domain"] = host
 
         return kcpSettings
+
+    @staticmethod
+    def client_finalmask_udp(masks: list, host: str = "") -> list:
+        """Mirror an inbound's Finalmask UDP chain for the client, same order
+        (e.g. mkcp-legacy aes128gcm has to stay ahead of xdns).
+
+        "filter" only restricts inbound source IPs, so it's dropped. XDNS
+        gets the client half: one domain (the host's Host field, otherwise
+        the first one listed) plus the inbound's `resolvers`, which the
+        server itself ignores.
+        """
+        client_masks = []
+        for mask in masks:
+            mask_type = mask.get("type")
+            if mask_type == "filter":
+                continue
+            if mask_type == "xdns":
+                xdns = mask.get("settings", {})
+                domains = xdns.get("domains") or [{}]
+                name = host or next((n for d in domains for n in d.get("names") or []), "")
+                # types/edns0 come from the entry that lists this domain
+                domain = copy.deepcopy(next(
+                    (d for d in domains if name in (d.get("names") or [])), domains[0]))
+                domain["names"] = [name]
+                settings = {"domains": [domain]}
+                if xdns.get("resolvers"):
+                    settings["resolvers"] = copy.deepcopy(xdns["resolvers"])
+                if xdns.get("extraPoll"):
+                    settings["extraPoll"] = xdns["extraPoll"]
+                mask = {"type": "xdns", "settings": settings}
+            client_masks.append(copy.deepcopy(mask))
+        return client_masks
 
     @staticmethod
     def stream_setting_config(network=None, security=None,
@@ -1086,6 +1125,7 @@ class V2rayJsonConfig(str):
                             heartbeatPeriod: int = 0,
                             keepAlivePeriod: int = 0,
                             downloadSettings: dict = None,
+                            finalmask_udp: list = None,
                             ) -> dict:
 
         if net == "ws":
@@ -1099,7 +1139,7 @@ class V2rayJsonConfig(str):
                 net=net, path=path, host=host, random_user_agent=random_user_agent)
         elif net == "kcp":
             network_setting = self.kcp_config(
-                seed=path, host=host, header=headers)
+                seed=path, host=host, header=headers, finalmask=bool(finalmask_udp))
         elif net in ("tcp", "raw") and tls != "reality":
             network_setting = self.tcp_config(
                 headers=headers, path=path, host=host, random_user_agent=random_user_agent)
@@ -1139,10 +1179,15 @@ class V2rayJsonConfig(str):
         else:
             sockopt = None
 
-        return self.stream_setting_config(network=net, security=tls,
-                                          network_setting=network_setting,
-                                          tls_settings=tls_settings,
-                                          sockopt=sockopt)
+        stream_settings = self.stream_setting_config(network=net, security=tls,
+                                                     network_setting=network_setting,
+                                                     tls_settings=tls_settings,
+                                                     sockopt=sockopt)
+        if net == "kcp" and finalmask_udp:
+            stream_settings["finalmask"] = {
+                "udp": self.client_finalmask_udp(finalmask_udp, host=host),
+            }
+        return stream_settings
 
     @staticmethod
     def hysteria2_outbound(address=None, port=None, auth=None, sni=None, ais=False, obfs_password=None) -> dict:
@@ -1301,6 +1346,7 @@ class V2rayJsonConfig(str):
             heartbeatPeriod=inbound.get("heartbeatPeriod", 0),
             keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
             downloadSettings=inbound.get("downloadSettings"),
+            finalmask_udp=inbound.get("finalmask_udp"),
         )
 
         mux_json = json.loads(self.mux_template)

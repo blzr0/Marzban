@@ -324,11 +324,32 @@ class XRayConfig(dict):
                         settings['downloadSettings'] = ds
 
                 elif net == 'kcp':
-                    header = net_settings.get('header', {})
+                    # Xray 26+ silently ignores kcpSettings.header/seed -
+                    # obfuscation and encryption moved to the Finalmask UDP
+                    # chain (streamSettings.finalmask.udp[]), which the
+                    # client has to mirror in the same order. Kept as-is
+                    # for the v2ray-json subscription.
+                    udp_masks = stream.get('finalmask', {}).get('udp') or []
+                    if udp_masks:
+                        settings['finalmask_udp'] = udp_masks
+                        settings['header_type'] = ''
+                        # XDNS: each node answers its own delegated domain,
+                        # set per host via the Host field - default to the
+                        # first one listed in the inbound.
+                        for mask in udp_masks:
+                            if mask.get('type') == 'xdns':
+                                settings['host'] = [
+                                    name
+                                    for domain in mask.get('settings', {}).get('domains') or []
+                                    for name in domain.get('names') or []
+                                ][:1]
+                                break
+                    else:
+                        header = net_settings.get('header', {})
 
-                    settings['header_type'] = header.get('type', '')
-                    settings['host'] = header.get('domain', '')
-                    settings['path'] = net_settings.get('seed', '')
+                        settings['header_type'] = header.get('type', '')
+                        settings['host'] = header.get('domain', '')
+                        settings['path'] = net_settings.get('seed', '')
 
                 elif net in ("http", "h2", "h3"):
                     net_settings = stream.get("httpSettings", {})
