@@ -478,6 +478,13 @@ Get an Immediate Backup:
 marzban backup
 ```
 
+Restore from a Backup (also works on a freshly installed OS; Telegram parts can be passed together and are joined automatically):
+```bash
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ restore /root/backup.tar.gz
+marzban restore backup_part_aa.tar.gz backup_part_ab.tar.gz
+```
+The restore puts back `/opt/marzban` (`.env`, `docker-compose.yml`), `/var/lib/marzban` and the database, then starts Marzban. Xray core binaries are not part of backups, so if you used a custom core you will be offered to install it again (or run `marzban core-update` later).
+
 By following these steps, you can ensure that you have a backup of all your Marzban files and data, as well as your configuration variables and Xray configuration, in case you need to restore them in the future. Remember to update your backups regularly to keep them up-to-date.
 
 # Telegram Bot

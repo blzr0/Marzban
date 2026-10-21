@@ -494,6 +494,15 @@ marzban backup-service
 marzban backup
 ```
 
+Восстановление из резервной копии (работает и на только что установленной ОС; части из Telegram можно передать вместе — они склеятся автоматически):
+
+```bash
+sudo bash -c "$(curl -sL https://github.com/blzr0/Marzban-scripts/raw/master/marzban.sh)" @ restore /root/backup.tar.gz
+marzban restore backup_part_aa.tar.gz backup_part_ab.tar.gz
+```
+
+Восстанавливаются `/opt/marzban` (`.env`, `docker-compose.yml`), `/var/lib/marzban` и база данных, после чего Marzban запускается. Ядро Xray в резервную копию не входит, поэтому если использовалось своё ядро, будет предложено установить его заново (или позже выполнить `marzban core-update`).
+
 # Marzban CLI
 
 Marzban поставляется с встроенным CLI под названием `marzban-cli`, который позволяет администраторам напрямую взаимодействовать с ним.
