@@ -45,14 +45,16 @@ STATUS_TEXTS = {
 }
 
 
-def generate_v2ray_links(proxies: dict, inbounds: dict, extra_data: dict, reverse: bool) -> list:
+def generate_v2ray_links(proxies: dict, inbounds: dict, extra_data: dict, reverse: bool, xhttp_mode: str = "") -> list:
     format_variables = setup_format_variables(extra_data)
     conf = V2rayShareLink()
-    return process_inbounds_and_tags(inbounds, proxies, format_variables, conf=conf, reverse=reverse)
+    return process_inbounds_and_tags(inbounds, proxies, format_variables, conf=conf, reverse=reverse,
+                                     xhttp_mode=xhttp_mode)
 
 
 def generate_clash_subscription(
-        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool, is_meta: bool = False
+        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool, is_meta: bool = False,
+        xhttp_mode: str = "",
 ) -> str:
     if is_meta is True:
         conf = ClashMetaConfiguration()
@@ -61,42 +63,42 @@ def generate_clash_subscription(
 
     format_variables = setup_format_variables(extra_data)
     return process_inbounds_and_tags(
-        inbounds, proxies, format_variables, conf=conf, reverse=reverse
+        inbounds, proxies, format_variables, conf=conf, reverse=reverse, xhttp_mode=xhttp_mode
     )
 
 
 def generate_singbox_subscription(
-        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool
+        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool, xhttp_mode: str = "",
 ) -> str:
     conf = SingBoxConfiguration()
 
     format_variables = setup_format_variables(extra_data)
     return process_inbounds_and_tags(
-        inbounds, proxies, format_variables, conf=conf, reverse=reverse
+        inbounds, proxies, format_variables, conf=conf, reverse=reverse, xhttp_mode=xhttp_mode
     )
 
 
 def generate_outline_subscription(
-        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool,
+        proxies: dict, inbounds: dict, extra_data: dict, reverse: bool, xhttp_mode: str = "",
 ) -> str:
     conf = OutlineConfiguration()
 
     format_variables = setup_format_variables(extra_data)
     return process_inbounds_and_tags(
-        inbounds, proxies, format_variables, conf=conf, reverse=reverse
+        inbounds, proxies, format_variables, conf=conf, reverse=reverse, xhttp_mode=xhttp_mode
     )
 
 
 def generate_v2ray_json_subscription(
         proxies: dict, inbounds: dict, extra_data: dict, reverse: bool,
-        extra_links: list = None,
+        extra_links: list = None, xhttp_mode: str = "",
 ) -> str:
     conf = V2rayJsonConfig()
     conf.username = extra_data.get("username") or ""
 
     format_variables = setup_format_variables(extra_data)
     process_inbounds_and_tags(
-        inbounds, proxies, format_variables, conf=conf, reverse=reverse
+        inbounds, proxies, format_variables, conf=conf, reverse=reverse, xhttp_mode=xhttp_mode
     )
     # after the (possibly reversed) hosts, so AUTO profiles stay on top either way
     conf.insert_auto_configs()
@@ -200,12 +202,14 @@ def generate_subscription(
         as_base64: bool,
         reverse: bool,
         extra_links: list = None,
+        xhttp_mode: str = "",
 ) -> str:
     kwargs = {
         "proxies": user.proxies,
         "inbounds": user.inbounds,
         "extra_data": user.__dict__,
         "reverse": reverse,
+        "xhttp_mode": xhttp_mode,
     }
 
     if config_format == "v2ray":
@@ -350,6 +354,7 @@ def process_inbounds_and_tags(
             OutlineConfiguration
         ],
         reverse=False,
+        xhttp_mode: str = "",
 ) -> Union[List, str]:
     _inbounds = []
     for protocol, tags in inbounds.items():
@@ -420,6 +425,8 @@ def process_inbounds_and_tags(
                         "random_user_agent": host["random_user_agent"],
                     }
                 )
+                if xhttp_mode and inbound["network"] == "xhttp":
+                    host_inbound["mode"] = xhttp_mode
 
                 conf.add(
                     remark=host["remark"].format_map(format_variables),

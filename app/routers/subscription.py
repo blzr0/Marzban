@@ -43,6 +43,7 @@ from config import (
     USE_CUSTOM_JSON_FOR_STREISAND,
     USE_CUSTOM_JSON_FOR_V2RAYN,
     USE_CUSTOM_JSON_FOR_V2RAYNG,
+    XHTTP_MODE_IOS,
     XRAY_SUBSCRIPTION_PATH,
 )
 
@@ -93,12 +94,14 @@ def get_extra_sub_links(user: "UserResponse") -> list:
     return EXTRA_SUB_LINKS_LIST
 
 
-def build_v2ray_response(user: "UserResponse", headers: dict, extra_links: list) -> Response:
+def build_v2ray_response(user: "UserResponse", headers: dict, extra_links: list, xhttp_mode: str = "") -> Response:
     if not extra_links:
-        conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False)
+        conf = generate_subscription(user=user, config_format="v2ray", as_base64=True, reverse=False,
+                                     xhttp_mode=xhttp_mode)
         return Response(content=conf, media_type="text/plain", headers=headers)
 
-    raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False)
+    raw_conf = generate_subscription(user=user, config_format="v2ray", as_base64=False, reverse=False,
+                                     xhttp_mode=xhttp_mode)
     combined = raw_conf.rstrip("\n") + "\n" + "\n".join(extra_links)
     encoded = base64.b64encode(combined.encode()).decode()
     return Response(content=encoded, media_type="text/plain", headers=headers)
@@ -142,14 +145,25 @@ def resolve_client_format(user_agent: str) -> tuple:
     return "v2ray", False
 
 
-def build_subscription_response(user: "UserResponse", headers: dict, config_format: str, reverse: bool) -> Response:
+def resolve_xhttp_mode(user_agent: str) -> str:
+    """XHTTP mode override for this client, or "" to keep the inbound's."""
+    if XHTTP_MODE_IOS and (re.search(r'/(ios|ipados)\b', user_agent, re.IGNORECASE)
+                           or re.match(r'^[Ss]treisand', user_agent)):
+        return XHTTP_MODE_IOS
+    return ""
+
+
+def build_subscription_response(user: "UserResponse", headers: dict, config_format: str, reverse: bool,
+                                user_agent: str = "") -> Response:
     """The user's real subscription in `config_format`, with EXTRA_SUB_LINKS
     for the formats that carry them."""
     extra_links = get_extra_sub_links(user)
+    xhttp_mode = resolve_xhttp_mode(user_agent)
     if config_format == "v2ray":
-        return build_v2ray_response(user, headers, extra_links)
+        return build_v2ray_response(user, headers, extra_links, xhttp_mode)
     conf = generate_subscription(user=user, config_format=config_format, as_base64=False, reverse=reverse,
-                                 extra_links=extra_links if config_format == "v2ray-json" else None)
+                                 extra_links=extra_links if config_format == "v2ray-json" else None,
+                                 xhttp_mode=xhttp_mode)
     return Response(content=conf, media_type=client_config[config_format]["media_type"], headers=headers)
 
 
@@ -313,7 +327,8 @@ def user_subscription(
     if shows_expired_stub(user):
         return build_expired_subscription_response(user, request, config_format, reverse)
 
-    return build_subscription_response(user, build_response_headers(user, request), config_format, reverse)
+    return build_subscription_response(user, build_response_headers(user, request), config_format, reverse,
+                                       user_agent)
 
 
 @router.get("/{token}/info", response_model=SubscriptionUserResponse)
@@ -354,4 +369,5 @@ def user_subscription_with_client_type(
     if shows_expired_stub(user):
         return build_expired_subscription_response(user, request, client_type, reverse)
 
-    return build_subscription_response(user, build_response_headers(user, request), client_type, reverse)
+    return build_subscription_response(user, build_response_headers(user, request), client_type, reverse,
+                                       user_agent)

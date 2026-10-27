@@ -79,6 +79,10 @@ USE_CUSTOM_JSON_FOR_STREISAND = config("USE_CUSTOM_JSON_FOR_STREISAND", default=
 USE_CUSTOM_JSON_FOR_HAPP = config("USE_CUSTOM_JSON_FOR_HAPP", default=False, cast=bool)
 USE_CUSTOM_JSON_FOR_INCY = config("USE_CUSTOM_JSON_FOR_INCY", cast=bool, default=False)
 
+# XHTTP mode served to iOS clients instead of the inbound's own (e.g. packet-up,
+# when long-lived stream-one connections get dropped there); empty = no override
+XHTTP_MODE_IOS = config("XHTTP_MODE_IOS", default="").strip()
+
 NOTIFY_STATUS_CHANGE = config("NOTIFY_STATUS_CHANGE", default=True, cast=bool)
 NOTIFY_USER_CREATED = config("NOTIFY_USER_CREATED", default=True, cast=bool)
 NOTIFY_USER_UPDATED = config("NOTIFY_USER_UPDATED", default=True, cast=bool)
