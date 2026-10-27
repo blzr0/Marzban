@@ -1083,10 +1083,19 @@ class V2rayJsonConfig(str):
         return noises_settings
 
     @staticmethod
-    def make_dialer_outbound(fragment: str = "", noises: str = "") -> Union[dict, None]:
+    def add_fragment_mask(stream_settings: dict, fragment: str) -> None:
+        # in-transport rather than a dialerProxy freedom outbound: Happ often
+        # can't latency-test an outbound that chains through a dialer
+        if not fragment or stream_settings.get("network") in ("kcp", "hysteria"):
+            return
+        settings = V2rayJsonConfig.make_fragment(fragment)
+        settings["delay"] = settings.pop("interval")
+        stream_settings.setdefault("finalmask", {}).setdefault("tcp", []).append(
+            {"type": "fragment", "settings": settings})
+
+    @staticmethod
+    def make_dialer_outbound(noises: str = "") -> Union[dict, None]:
         dialer_settings = {}
-        if fragment:
-            dialer_settings["fragment"] = V2rayJsonConfig.make_fragment(fragment)
         if noises:
             dialer_settings["noises"] = V2rayJsonConfig.make_noises(noises)
 
@@ -1314,7 +1323,7 @@ class V2rayJsonConfig(str):
 
         outbounds = [outbound]
         dialer_proxy = ''
-        extra_outbound = self.make_dialer_outbound(fragment, noise)
+        extra_outbound = self.make_dialer_outbound(noise)
         if extra_outbound:
             dialer_proxy = extra_outbound['tag']
             outbounds.append(extra_outbound)
@@ -1348,6 +1357,7 @@ class V2rayJsonConfig(str):
             downloadSettings=inbound.get("downloadSettings"),
             finalmask_udp=inbound.get("finalmask_udp"),
         )
+        self.add_fragment_mask(outbound["streamSettings"], fragment)
 
         mux_json = json.loads(self.mux_template)
         mux_config = mux_json["v2ray"]
@@ -1426,7 +1436,8 @@ class V2rayJsonConfig(str):
             return
 
         outbounds = [outbound]
-        extra_outbound = self.make_dialer_outbound(fragment, noises)
+        self.add_fragment_mask(outbound["streamSettings"], fragment)
+        extra_outbound = self.make_dialer_outbound(noises)
         if extra_outbound:
             outbound["streamSettings"]["sockopt"] = {"dialerProxy": extra_outbound["tag"]}
             outbounds.append(extra_outbound)
