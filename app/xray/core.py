@@ -145,7 +145,7 @@ class XRayCore:
             cmd,
             env=self._env,
             stdin=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE,
             universal_newlines=True
         )
