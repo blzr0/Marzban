@@ -135,6 +135,8 @@
   "nodes.status.unreachable": "недоступен",
   "nodes.status.xrayApi": "Xray API",
   "nodes.status.xrayProcess": "Процесс Xray",
+  "nodes.master": "Мастер",
+  "nodes.masterNoInbounds": "На мастере Xray не поднял ни одного инбаунда",
   "nodes.title": "Используя Marzban-Node, Вы можете масштабировать инфраструктуру, добавляя узлы на разных серверах.",
   "nodes.usageCoefficient": "Коэффициент использования",
   "on_hold": "Ожидает подключения",

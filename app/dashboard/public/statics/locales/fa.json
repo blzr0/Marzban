@@ -141,6 +141,8 @@
   "nodes.status.unreachable": "خارج از دسترس",
   "nodes.status.xrayApi": "Xray API",
   "nodes.status.xrayProcess": "پردازش Xray",
+  "nodes.master": "سرور اصلی",
+  "nodes.masterNoInbounds": "Xray روی سرور اصلی هیچ ورودی فعالی ندارد",
   "nodes.title": "با استفاده از Marzban-Node, شما می‌توانید با افزودن گره‌های متفاوت در سرورهای متفاوت، کیفیت اتصال خود را بالاتر ببرید.",
   "nodes.usageCoefficient": "ضریب گره",
   "on_hold": "در انتظار اتصال",

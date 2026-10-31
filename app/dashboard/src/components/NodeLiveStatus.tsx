@@ -2,7 +2,7 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useAccordionItemState } from "@chakra-ui/react";
 import { FC, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useNodeStatusQuery } from "contexts/NodesContext";
+import { NodeLiveInboundType, useNodeStatusQuery } from "contexts/NodesContext";
 
 const formatUptime = (seconds: number): string => {
   const total = Math.max(0, Math.floor(seconds || 0));
@@ -58,6 +58,52 @@ const Card: FC<{ children: ReactNode }> = ({ children }) => {
         {t("nodes.status.liveTitle")}
       </Text>
       {children}
+    </Box>
+  );
+};
+
+export const InboundList: FC<{ sockets: NodeLiveInboundType[] }> = ({ sockets }) => {
+  const { t } = useTranslation();
+  return (
+    <Box mt={3}>
+      <Text
+        fontSize="10px"
+        fontWeight="bold"
+        letterSpacing="wide"
+        textTransform="uppercase"
+        color="gray.500"
+        _dark={{ color: "gray.400" }}
+        mb={1}
+      >
+        {t("nodes.status.activeInbounds")}
+      </Text>
+      <VStack align="stretch" spacing="2px">
+        {sockets.map((s, i) => (
+          <HStack key={`${s.tag}-${i}`} fontSize="xs" fontFamily="mono" spacing={3}>
+            <Text flex="1" isTruncated color="gray.700" _dark={{ color: "gray.300" }}>
+              {s.tag}
+            </Text>
+            <Text
+              w="34px"
+              textAlign="center"
+              borderRadius="4px"
+              fontWeight="bold"
+              fontSize="10px"
+              bg={s.proto === "udp" ? "cyan.50" : "blue.50"}
+              color={s.proto === "udp" ? "cyan.700" : "blue.700"}
+              _dark={{
+                bg: s.proto === "udp" ? "cyan.900" : "blue.900",
+                color: s.proto === "udp" ? "cyan.200" : "blue.200",
+              }}
+            >
+              {s.proto}
+            </Text>
+            <Text w="50px" textAlign="right" color="gray.600" _dark={{ color: "gray.400" }}>
+              {s.port}
+            </Text>
+          </HStack>
+        ))}
+      </VStack>
     </Box>
   );
 };
@@ -161,48 +207,7 @@ export const NodeLiveStatus: FC<Props> = ({ nodeId }) => {
         )}
       </VStack>
 
-      {sockets.length > 0 && (
-        <Box mt={3}>
-          <Text
-            fontSize="10px"
-            fontWeight="bold"
-            letterSpacing="wide"
-            textTransform="uppercase"
-            color="gray.500"
-            _dark={{ color: "gray.400" }}
-            mb={1}
-          >
-            {t("nodes.status.activeInbounds")}
-          </Text>
-          <VStack align="stretch" spacing="2px">
-            {sockets.map((s, i) => (
-              <HStack key={`${s.tag}-${i}`} fontSize="xs" fontFamily="mono" spacing={3}>
-                <Text flex="1" isTruncated color="gray.700" _dark={{ color: "gray.300" }}>
-                  {s.tag}
-                </Text>
-                <Text
-                  w="34px"
-                  textAlign="center"
-                  borderRadius="4px"
-                  fontWeight="bold"
-                  fontSize="10px"
-                  bg={s.proto === "udp" ? "cyan.50" : "blue.50"}
-                  color={s.proto === "udp" ? "cyan.700" : "blue.700"}
-                  _dark={{
-                    bg: s.proto === "udp" ? "cyan.900" : "blue.900",
-                    color: s.proto === "udp" ? "cyan.200" : "blue.200",
-                  }}
-                >
-                  {s.proto}
-                </Text>
-                <Text w="50px" textAlign="right" color="gray.600" _dark={{ color: "gray.400" }}>
-                  {s.port}
-                </Text>
-              </HStack>
-            ))}
-          </VStack>
-        </Box>
-      )}
+      {sockets.length > 0 && <InboundList sockets={sockets} />}
     </Card>
   );
 };

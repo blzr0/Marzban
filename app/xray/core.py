@@ -23,6 +23,7 @@ class XRayCore:
 
         self.version = self.get_version()
         self.process = None
+        self.inbounds = []
         self._restart_lock = threading.Lock()
 
         self._logs_buffer = deque(maxlen=100)
@@ -126,11 +127,30 @@ class XRayCore:
         )
         return filtered
 
+    @staticmethod
+    def _extract_inbounds(config: XRayConfig) -> list:
+        """Snapshot of the inbounds the local Xray is started with, for the
+        master entry in the dashboard's nodes list - same shape as a node's
+        listening_sockets. API_INBOUND is internal plumbing, so it's skipped.
+        """
+        sockets = []
+        for inbound in config.get('inbounds', []) or []:
+            if inbound.get('tag') == API_INBOUND_TAG:
+                continue
+            network = (inbound.get('streamSettings') or {}).get('network')
+            sockets.append({
+                "tag": inbound.get('tag'),
+                "proto": 'udp' if network in ('hysteria', 'kcp') else 'tcp',
+                "port": inbound.get('port'),
+            })
+        return sockets
+
     def start(self, config: XRayConfig):
         if self.started is True:
             raise RuntimeError("Xray is started already")
 
         config = self._filter_local_inbounds(config)
+        self.inbounds = self._extract_inbounds(config)
 
         if config.get('log', {}).get('logLevel') in ('none', 'error'):
             config['log']['logLevel'] = 'warning'

@@ -82,6 +82,7 @@ def get_core_stats(admin: Admin = Depends(Admin.get_current)):
         version=xray.core.version,
         started=xray.core.started,
         logs_websocket=router.url_path_for("core_logs"),
+        inbounds=xray.core.inbounds if xray.core.started else [],
     )
 
 

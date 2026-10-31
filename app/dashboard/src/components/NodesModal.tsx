@@ -39,6 +39,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   FetchNodesQueryKey,
+  NodeLiveInboundType,
   getNodeDefaultValues,
   NodeSchema,
   NodeType,
@@ -66,7 +67,7 @@ import { DeleteNodeModal } from "./DeleteNodeModal";
 import { DeleteIcon } from "./DeleteUserModal";
 import { ReloadIcon } from "./Filters";
 import { Icon } from "./Icon";
-import { NodeLiveStatus } from "./NodeLiveStatus";
+import { InboundList, NodeLiveStatus } from "./NodeLiveStatus";
 import { NodeModalStatusBadge } from "./NodeModalStatusBadge";
 
 import { fetch } from "service/http";
@@ -539,6 +540,87 @@ const NodeForm: NodeFormType = ({
   );
 };
 
+type CoreStatsType = {
+  version: string;
+  started: boolean;
+  inbounds: NodeLiveInboundType[];
+};
+
+// The master's own Xray, read-only: shows which inbounds INBOUNDS left
+// running locally, next to the nodes that get the full config.
+const MasterAccordion: FC = () => {
+  const { t } = useTranslation();
+  const { isEditingNodes } = useDashboard();
+  const { data } = useQuery<CoreStatsType>({
+    queryKey: ["core-stats"],
+    queryFn: () => fetch("/core"),
+    enabled: isEditingNodes,
+    refetchInterval: isEditingNodes ? 5000 : false,
+    refetchOnWindowFocus: false,
+  });
+
+  return (
+    <AccordionItem
+      border="1px solid"
+      _dark={{ borderColor: "gray.600" }}
+      _light={{ borderColor: "gray.200" }}
+      borderRadius="4px"
+      p={1}
+      w="full"
+    >
+      <AccordionButton px={2} borderRadius="3px">
+        <HStack w="full" justifyContent="space-between" pr={2}>
+          <Text
+            as="span"
+            fontWeight="medium"
+            fontSize="sm"
+            flex="1"
+            textAlign="left"
+            color="gray.700"
+            _dark={{ color: "gray.300" }}
+          >
+            {t("nodes.master")}
+          </Text>
+          {data && (
+            <HStack>
+              <Badge
+                colorScheme="blue"
+                rounded="full"
+                display="inline-flex"
+                px={3}
+                py={1}
+              >
+                <Text
+                  textTransform="capitalize"
+                  fontSize="0.7rem"
+                  fontWeight="medium"
+                  letterSpacing="tighter"
+                >
+                  Xray {data.version}
+                </Text>
+              </Badge>
+              <NodeModalStatusBadge
+                status={data.started ? "connected" : "error"}
+                compact
+              />
+            </HStack>
+          )}
+        </HStack>
+        <AccordionIcon />
+      </AccordionButton>
+      <AccordionPanel px={2} pb={2}>
+        {data && data.inbounds.length > 0 ? (
+          <InboundList sockets={data.inbounds} />
+        ) : (
+          <Text fontSize="xs" color="gray.500" _dark={{ color: "gray.400" }} mt={2}>
+            {data ? t("nodes.masterNoInbounds") : t("nodes.status.loading")}
+          </Text>
+        )}
+      </AccordionPanel>
+    </AccordionItem>
+  );
+};
+
 export const NodesDialog: FC = () => {
   const { isEditingNodes, onEditingNodes } = useDashboard();
   const { t } = useTranslation();
@@ -573,6 +655,9 @@ export const NodesDialog: FC = () => {
             <Text mb={3} opacity={0.8} fontSize="sm">
               {t("nodes.title")}
             </Text>
+            <Accordion w="full" allowToggle mb={2}>
+              <MasterAccordion />
+            </Accordion>
             {isLoading && "loading..."}
 
             <Accordion

@@ -135,6 +135,8 @@
   "nodes.status.unreachable": "unreachable",
   "nodes.status.xrayApi": "Xray API",
   "nodes.status.xrayProcess": "Xray process",
+  "nodes.master": "Master",
+  "nodes.masterNoInbounds": "Xray on the master isn't running any inbounds",
   "nodes.title": "Using Marzban-Node, you are able to scale up your connection quality by adding different nodes on different servers.",
   "nodes.usageCoefficient": "Usage Ratio",
   "on_hold": "On Hold",
