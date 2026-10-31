@@ -1,3 +1,4 @@
+import ipaddress
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -8,21 +9,37 @@ from app import xray
 from app.db import Session, crud, get_db
 from app.dependencies import get_admin_by_username, validate_admin
 from app.models.admin import Admin, AdminCreate, AdminModify, Token
-from app.utils import report, responses
+from app.utils import login_limiter, report, responses
 from app.utils.jwt import create_admin_token
 from config import LOGIN_NOTIFY_WHITE_LIST
 
 router = APIRouter(tags=["Admin"], prefix="/api", responses={401: responses._401})
 
 
+def _is_local_proxy(host: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return addr.is_loopback or addr.is_private
+
+
 def get_client_ip(request: Request) -> str:
-    """Extract the client's IP address from the request headers or client."""
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "Unknown"
+    """The client's IP address. Proxy headers are only believed when the
+    request comes from a local reverse proxy (nginx on this host or in a
+    container next to it); anyone else could send them to fake an IP and dodge
+    the login limit. Behind such a proxy, X-Real-IP or the last
+    X-Forwarded-For hop is the one the proxy itself saw."""
+    peer = request.client.host if request.client else ""
+    if peer and _is_local_proxy(peer):
+        real_ip = request.headers.get("X-Real-IP", "").strip()
+        if real_ip:
+            return real_ip
+        forwarded_for = request.headers.get("X-Forwarded-For", "")
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+        if hops:
+            return hops[-1]
+    return peer or "Unknown"
 
 
 @router.post("/admin/token", response_model=Token)
@@ -34,15 +51,25 @@ def admin_token(
     """Authenticate an admin and issue a token."""
     client_ip = get_client_ip(request)
 
+    retry_after = login_limiter.blocked_for(client_ip)
+    if retry_after:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed login attempts, try again in {(retry_after + 59) // 60} min",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     dbadmin = validate_admin(db, form_data.username, form_data.password)
     if not dbadmin:
         report.login(form_data.username, form_data.password, client_ip, False)
+        login_limiter.record_failure(client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    login_limiter.record_success(client_ip)
     if client_ip not in LOGIN_NOTIFY_WHITE_LIST:
         report.login(form_data.username, "🔒", client_ip, True)
 

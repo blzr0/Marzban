@@ -72,6 +72,11 @@ EXTERNAL_CONFIG = config("EXTERNAL_CONFIG", default="", cast=str)
 LOGIN_NOTIFY_WHITE_LIST = [ip.strip() for ip in config("LOGIN_NOTIFY_WHITE_LIST",
                                                        default="", cast=str).split(",") if ip.strip()]
 
+# failed admin logins allowed per IP within LOGIN_BLOCK_MINUTES before that IP
+# is locked out for LOGIN_BLOCK_MINUTES; 0 in either turns the limit off
+LOGIN_MAX_ATTEMPTS = config("LOGIN_MAX_ATTEMPTS", cast=int, default=5)
+LOGIN_BLOCK_MINUTES = config("LOGIN_BLOCK_MINUTES", cast=int, default=15)
+
 USE_CUSTOM_JSON_DEFAULT = config("USE_CUSTOM_JSON_DEFAULT", default=False, cast=bool)
 USE_CUSTOM_JSON_FOR_V2RAYN = config("USE_CUSTOM_JSON_FOR_V2RAYN", default=False, cast=bool)
 USE_CUSTOM_JSON_FOR_V2RAYNG = config("USE_CUSTOM_JSON_FOR_V2RAYNG", default=False, cast=bool)
