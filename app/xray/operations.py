@@ -241,8 +241,16 @@ def sync_node_users(node, config: "XRayConfig") -> dict:
     return counts
 
 
-def remove_node(node_id: int):
+def remove_node(node_id: int, stop: bool = False):
+    """`stop` also shuts the node's Xray down (the node then forgets its saved
+    config, so it won't come back on reboot) - only for nodes an admin disabled
+    or deleted, never on panel shutdown or reconnects."""
     if node_id in xray.nodes:
+        if stop:
+            try:
+                xray.nodes[node_id].stop()
+            except Exception as e:
+                logger.warning(f"Unable to stop Xray core of node {node_id} ({e})")
         try:
             xray.nodes[node_id].disconnect()
         except Exception:
@@ -276,7 +284,7 @@ def _change_node_status(node_id: int, status: NodeStatus, message: str = None, v
                 return
 
             if dbnode.status == NodeStatus.disabled:
-                remove_node(dbnode.id)
+                remove_node(dbnode.id, stop=True)
                 return
 
             crud.update_node_status(db, dbnode, status, message, version)

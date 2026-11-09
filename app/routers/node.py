@@ -205,7 +205,7 @@ def modify_node(
 ):
     """Update a node's details. Only accessible to sudo admins."""
     updated_node = crud.update_node(db, dbnode, modified_node)
-    xray.operations.remove_node(updated_node.id)
+    xray.operations.remove_node(updated_node.id, stop=updated_node.status == NodeStatus.disabled)
     if updated_node.status != NodeStatus.disabled:
         bg.add_task(xray.operations.connect_node, node_id=updated_node.id)
 
@@ -232,7 +232,7 @@ def remove_node(
 ):
     """Delete a node and remove it from xray in the background."""
     crud.remove_node(db, dbnode)
-    xray.operations.remove_node(dbnode.id)
+    xray.operations.remove_node(dbnode.id, stop=True)
 
     logger.info(f'Node "{dbnode.name}" deleted')
     return {}
