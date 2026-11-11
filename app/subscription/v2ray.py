@@ -904,7 +904,8 @@ class V2rayJsonConfig(str):
 
         return quicSettings
 
-    def kcp_config(self, seed=None, host=None, header=None, finalmask: bool = False) -> dict:
+    def kcp_config(self, seed=None, host=None, header=None, finalmask_udp: list = None,
+                   inbound_kcp: dict = None) -> dict:
         kcpSettings = copy.deepcopy(self.settings.get("kcpSettings", {
             "header": {
                 "type": "none"
@@ -917,11 +918,15 @@ class V2rayJsonConfig(str):
             "readBufferSize": 2,
             "writeBufferSize": 2,
         }))
-        if finalmask:
+        if finalmask_udp:
             # header/seed are ignored by Xray 26+ anyway; the Finalmask
             # chain carries obfuscation/encryption instead
+            kcpSettings.update(copy.deepcopy(inbound_kcp or {}))
             kcpSettings.pop("header", None)
             kcpSettings.pop("seed", None)
+            xdns_mtu = self.xdns_client_mtu(finalmask_udp, host=host)
+            if xdns_mtu:
+                kcpSettings["mtu"] = min(kcpSettings.get("mtu", xdns_mtu), xdns_mtu)
             return kcpSettings
 
         if "header" not in kcpSettings:
@@ -935,6 +940,57 @@ class V2rayJsonConfig(str):
             kcpSettings["header"]["domain"] = host
 
         return kcpSettings
+
+    @staticmethod
+    def xdns_client_domain(xdns: dict, host: str = "") -> dict:
+        """The one XDNS domain entry the client queries: the host's Host
+        field, otherwise the first name listed in the inbound."""
+        domains = xdns.get("domains") or [{}]
+        name = host or next((n for d in domains for n in d.get("names") or []), "")
+        # types/edns0 come from the entry that lists this domain
+        domain = copy.deepcopy(next(
+            (d for d in domains if name in (d.get("names") or [])), domains[0]))
+        domain["names"] = [name]
+        return domain
+
+    @staticmethod
+    def xdns_client_mtu(masks: list, host: str = "") -> int:
+        """Largest client kcp MTU whose packet, once wrapped by the masks
+        ahead of xdns, still fits one DNS query - anything bigger is split
+        into several queries and a single lost one drops the whole packet,
+        which kills the tunnel on lossy mobile resolvers. 0 without xdns.
+
+        Mirrors Xray's xdns NewDomain() capacity (base32 in the query name,
+        15 bytes of xdns header) and the mkcp-legacy overheads.
+        """
+        overhead = 0
+        for mask in masks:
+            mask_type = mask.get("type")
+            settings = mask.get("settings") or {}
+            if mask_type == "xdns":
+                domain = V2rayJsonConfig.xdns_client_domain(settings, host)
+                name = domain["names"][0].strip(".")
+                if not name:
+                    return 0
+                len_limit = domain.get("lenLimit") or 255
+                label_limit = domain.get("labelLimit") or 63
+                free = len_limit - (len(name) + 1) - 1  # dnsmessage.Name.Length counts the root dot
+                total = free // (label_limit + 1) * label_limit
+                if free % (label_limit + 1) > 1:
+                    total += free % (label_limit + 1) - 1
+                mtu = total * 5 // 8 - 15 - overhead
+                return mtu if mtu >= 21 else 0  # Xray's kcp minimum
+            if mask_type == "mkcp-legacy":
+                header = (settings.get("header") or "").lower()
+                if not header:
+                    overhead += 28 if settings.get("value") else 6  # aes128gcm / original
+                elif header == "dns":
+                    overhead += len(settings.get("value") or "www.baidu.com") + 18
+                else:
+                    overhead += 13  # dtls/wechat; srtp/utp/wireguard are 4
+            elif mask_type != "filter":
+                overhead += 32  # other masks: leave room rather than fragment
+        return 0
 
     @staticmethod
     def client_finalmask_udp(masks: list, host: str = "") -> list:
@@ -953,13 +1009,7 @@ class V2rayJsonConfig(str):
                 continue
             if mask_type == "xdns":
                 xdns = mask.get("settings", {})
-                domains = xdns.get("domains") or [{}]
-                name = host or next((n for d in domains for n in d.get("names") or []), "")
-                # types/edns0 come from the entry that lists this domain
-                domain = copy.deepcopy(next(
-                    (d for d in domains if name in (d.get("names") or [])), domains[0]))
-                domain["names"] = [name]
-                settings = {"domains": [domain]}
+                settings = {"domains": [V2rayJsonConfig.xdns_client_domain(xdns, host)]}
                 if xdns.get("resolvers"):
                     settings["resolvers"] = copy.deepcopy(xdns["resolvers"])
                 if xdns.get("extraPoll"):
@@ -1135,6 +1185,7 @@ class V2rayJsonConfig(str):
                             keepAlivePeriod: int = 0,
                             downloadSettings: dict = None,
                             finalmask_udp: list = None,
+                            kcp_settings: dict = None,
                             ) -> dict:
 
         if net == "ws":
@@ -1148,7 +1199,8 @@ class V2rayJsonConfig(str):
                 net=net, path=path, host=host, random_user_agent=random_user_agent)
         elif net == "kcp":
             network_setting = self.kcp_config(
-                seed=path, host=host, header=headers, finalmask=bool(finalmask_udp))
+                seed=path, host=host, header=headers,
+                finalmask_udp=finalmask_udp, inbound_kcp=kcp_settings)
         elif net in ("tcp", "raw") and tls != "reality":
             network_setting = self.tcp_config(
                 headers=headers, path=path, host=host, random_user_agent=random_user_agent)
@@ -1356,6 +1408,7 @@ class V2rayJsonConfig(str):
             keepAlivePeriod=inbound.get("keepAlivePeriod", 0),
             downloadSettings=inbound.get("downloadSettings"),
             finalmask_udp=inbound.get("finalmask_udp"),
+            kcp_settings=inbound.get("kcp_settings"),
         )
         self.add_fragment_mask(outbound["streamSettings"], fragment)
 

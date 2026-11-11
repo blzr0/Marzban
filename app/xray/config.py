@@ -332,6 +332,9 @@ class XRayConfig(dict):
                     udp_masks = stream.get('finalmask', {}).get('udp') or []
                     if udp_masks:
                         settings['finalmask_udp'] = udp_masks
+                        # the client mirrors the inbound's kcp tuning
+                        # rather than the subscription template's
+                        settings['kcp_settings'] = net_settings
                         settings['header_type'] = ''
                         # XDNS: each node answers its own delegated domain,
                         # set per host via the Host field - default to the
