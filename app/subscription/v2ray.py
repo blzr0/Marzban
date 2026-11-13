@@ -972,7 +972,10 @@ class V2rayJsonConfig(str):
                 name = domain["names"][0].strip(".")
                 if not name:
                     return 0
-                len_limit = domain.get("lenLimit") or 255
+                # Xray fills names up to the 255-byte DNS limit, but resolvers
+                # (Yandex, НСДИ) drop or SERVFAIL names right at it, so keep a
+                # margin unless the inbound sets its own lenLimit
+                len_limit = domain.get("lenLimit") or 247
                 label_limit = domain.get("labelLimit") or 63
                 free = len_limit - (len(name) + 1) - 1  # dnsmessage.Name.Length counts the root dot
                 total = free // (label_limit + 1) * label_limit
