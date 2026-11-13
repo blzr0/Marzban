@@ -1421,6 +1421,11 @@ class V2rayJsonConfig(str):
         if inbound.get('mux_enable', False):
             outbound["mux"] = mux_config
             outbound["mux"]["enabled"] = True
+            # every new XDNS session costs a handshake over DNS, so let
+            # Xray's own default (128 since v26.11.9) pack more streams
+            # into one instead of the template's concurrency
+            if any(m.get("type") == "xdns" for m in inbound.get("finalmask_udp") or []):
+                outbound["mux"].pop("concurrency", None)
 
         self.add_config(remarks=remark, outbounds=outbounds, inbound_tag=inbound.get('tag'))
 
