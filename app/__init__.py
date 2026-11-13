@@ -19,6 +19,8 @@ app = FastAPI(
     version=__version__,
     docs_url="/docs" if DOCS else None,
     redoc_url="/redoc" if DOCS else None,
+    # the schema lists every route and is served even with the docs pages off
+    openapi_url="/openapi.json" if DOCS else None,
 )
 
 scheduler = BackgroundScheduler(
