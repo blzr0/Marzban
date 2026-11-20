@@ -30,7 +30,7 @@ import {
 import { joinPaths } from "@remix-run/router";
 import classNames from "classnames";
 import { useCoreSettings } from "contexts/CoreSettingsContext";
-import { useDashboard } from "contexts/DashboardContext";
+import { fetchInbounds, useDashboard } from "contexts/DashboardContext";
 import debounce from "lodash.debounce";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -200,6 +200,8 @@ const CoreSettingModalContent: FC = () => {
   const handleOnSave = ({ config }: any) => {
     updateConfig(config)
       .then(() => {
+        // hosts of new inbounds come from the server, keep the inbound list in step
+        fetchInbounds();
         toast({
           title: t("core.successMessage"),
           status: "success",
