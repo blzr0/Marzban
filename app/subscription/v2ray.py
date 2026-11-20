@@ -96,6 +96,7 @@ class V2rayShareLink(str):
                 port=inbound["port"],
                 id=settings["id"],
                 flow=settings.get("flow", ""),
+                encryption=inbound.get("encryption", ""),
                 net=net,
                 tls=inbound["tls"],
                 sni=inbound.get("sni", ""),
@@ -293,6 +294,7 @@ class V2rayShareLink(str):
               host='',
               type='',
               flow='',
+              encryption='',
               tls='none',
               sni='',
               fp='',
@@ -320,6 +322,8 @@ class V2rayShareLink(str):
             "type": net,
             "headerType": type
         }
+        if encryption:
+            payload['encryption'] = encryption
         if flow and (tls in ('tls', 'reality') and net in ('tcp', 'raw', 'kcp') and type != 'http'):
             payload['flow'] = flow
 
@@ -1060,7 +1064,7 @@ class V2rayJsonConfig(str):
         }
 
     @staticmethod
-    def vless_config(address=None, port=None, id=None, flow="", email="user") -> dict:
+    def vless_config(address=None, port=None, id=None, flow="", email="user", encryption=None) -> dict:
         return {
             "vnext": [
                 {
@@ -1070,7 +1074,7 @@ class V2rayJsonConfig(str):
                         {
                             "id": id,
                             "security": "auto",
-                            "encryption": "none",
+                            "encryption": encryption or "none",
                             "email": email,
                             "alterId": 0,
                             "flow": flow
@@ -1361,7 +1365,8 @@ class V2rayJsonConfig(str):
                                                      port=port,
                                                      id=settings['id'],
                                                      flow=flow,
-                                                     email=email)
+                                                     email=email,
+                                                     encryption=inbound.get('encryption'))
 
         elif inbound['protocol'] == 'trojan':
             outbound["settings"] = self.trojan_config(address=address,
@@ -1452,7 +1457,8 @@ class V2rayJsonConfig(str):
             outbound = {
                 "tag": "proxy",
                 "protocol": "vless",
-                "settings": self.vless_config(address=address, port=port, id=credential, flow=flow),
+                "settings": self.vless_config(address=address, port=port, id=credential, flow=flow,
+                                              encryption=params.get("encryption")),
             }
 
             alpn = params.get("alpn")

@@ -56,6 +56,13 @@ class XRayCore:
                 "public_key": public
             }
 
+    def get_mlkem768_client(self, seed: str):
+        cmd = [self.executable_path, "mlkem768", "-i", seed]
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
+        m = re.search(r'Client:\s*(\S+)', output)
+        if m:
+            return m.group(1)
+
     def __capture_process_logs(self, proc):
         def capture_and_debug_log():
             while proc.poll() is None:

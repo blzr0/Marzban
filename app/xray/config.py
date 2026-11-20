@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from collections import defaultdict
 from copy import deepcopy
@@ -384,6 +385,11 @@ class XRayConfig(dict):
                     elif host and isinstance(host, list):
                         settings['host'] = host[0]
 
+            if proxy_protocol == 'vless':
+                decryption = inbound['settings'].get('decryption') or 'none'
+                if decryption != 'none':
+                    settings['encryption'] = self._vless_client_encryption(inbound['tag'], decryption)
+
             self.inbounds.append(settings)
             self.inbounds_by_tag[inbound['tag']] = settings
 
@@ -391,6 +397,41 @@ class XRayConfig(dict):
                 self.inbounds_by_protocol[proxy_protocol].append(settings)
             except KeyError:
                 self.inbounds_by_protocol[proxy_protocol] = [settings]
+
+    @staticmethod
+    def _vless_client_encryption(tag: str, decryption: str) -> str:
+        """Client "encryption" for a VLESS Encryption inbound, derived from its
+        server "decryption" the way `xray vlessenc` pairs them: X25519 private
+        keys (32 bytes) become public keys, ML-KEM-768 seeds (64 bytes) become
+        client keys, short padding items pass through, and the server ticket
+        lifetime ("600s") turns into 0-RTT ("0s" into 1-RTT).
+        """
+        parts = decryption.split('.')
+        if len(parts) < 4 or parts[0] != 'mlkem768x25519plus':
+            raise ValueError(f"Unsupported VLESS decryption in {tag}, generate one with `xray vlessenc`")
+
+        from app.xray import core
+
+        seconds = parts[2].rstrip('s').split('-')[0]
+        rtt = '1rtt' if seconds in ('', '0') else '0rtt'
+        client = [parts[0], parts[1], rtt]
+        for item in parts[3:]:
+            if len(item) < 20:
+                client.append(item)
+                continue
+            try:
+                size = len(base64.urlsafe_b64decode(item + '=' * (-len(item) % 4)))
+            except ValueError:
+                size = 0
+            key = None
+            if size == 32:
+                key = (core.get_x25519(item) or {}).get('public_key')
+            elif size == 64:
+                key = core.get_mlkem768_client(item)
+            if not key:
+                raise ValueError(f"Invalid key in VLESS decryption of {tag}")
+            client.append(key)
+        return '.'.join(client)
 
     def get_inbound(self, tag) -> dict:
         for inbound in self['inbounds']:

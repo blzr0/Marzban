@@ -288,6 +288,10 @@ class SingBoxConfiguration(str):
         net = inbound["network"]
         path = inbound["path"]
 
+        # sing-box has no VLESS Encryption
+        if inbound['protocol'] == 'vless' and inbound.get('encryption'):
+            return
+
         if inbound['protocol'] == 'hysteria2':
             # Native sing-box type, no transport/network concept to route
             # through make_outbound() - built directly instead.

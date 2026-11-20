@@ -149,6 +149,7 @@ def _parsed_link_as_inbound(parsed: dict) -> tuple:
         "fp": params.get("fp", ""),
         "pbk": params.get("pbk", ""),
         "sid": params.get("sid", ""),
+        "encryption": "" if params.get("encryption") in (None, "none") else params["encryption"],
         "ais": ais,
         "mux_enable": False,
         "random_user_agent": False,
