@@ -76,6 +76,10 @@ LOGIN_NOTIFY_WHITE_LIST = [ip.strip() for ip in config("LOGIN_NOTIFY_WHITE_LIST"
 # is locked out for LOGIN_BLOCK_MINUTES; 0 in either turns the limit off
 LOGIN_MAX_ATTEMPTS = config("LOGIN_MAX_ATTEMPTS", cast=int, default=5)
 LOGIN_BLOCK_MINUTES = config("LOGIN_BLOCK_MINUTES", cast=int, default=15)
+# reverse proxies (IPs or networks) whose X-Real-IP / X-Forwarded-For is
+# believed for the client IP; requests from anywhere else use the TCP peer
+TRUSTED_PROXIES = [p.strip() for p in config("TRUSTED_PROXIES",
+                                             default="127.0.0.1,::1", cast=str).split(",") if p.strip()]
 
 USE_CUSTOM_JSON_DEFAULT = config("USE_CUSTOM_JSON_DEFAULT", default=False, cast=bool)
 USE_CUSTOM_JSON_FOR_V2RAYN = config("USE_CUSTOM_JSON_FOR_V2RAYN", default=False, cast=bool)

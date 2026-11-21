@@ -11,27 +11,29 @@ from app.dependencies import get_admin_by_username, validate_admin
 from app.models.admin import Admin, AdminCreate, AdminModify, Token
 from app.utils import login_limiter, report, responses
 from app.utils.jwt import create_admin_token
-from config import LOGIN_NOTIFY_WHITE_LIST
+from config import LOGIN_NOTIFY_WHITE_LIST, TRUSTED_PROXIES
 
 router = APIRouter(tags=["Admin"], prefix="/api", responses={401: responses._401})
 
 
-def _is_local_proxy(host: str) -> bool:
+_TRUSTED_PROXY_NETS = [ipaddress.ip_network(p, strict=False) for p in TRUSTED_PROXIES]
+
+
+def _is_trusted_proxy(host: str) -> bool:
     try:
         addr = ipaddress.ip_address(host)
     except ValueError:
         return False
-    return addr.is_loopback or addr.is_private
+    return any(addr in net for net in _TRUSTED_PROXY_NETS)
 
 
 def get_client_ip(request: Request) -> str:
     """The client's IP address. Proxy headers are only believed when the
-    request comes from a local reverse proxy (nginx on this host or in a
-    container next to it); anyone else could send them to fake an IP and dodge
-    the login limit. Behind such a proxy, X-Real-IP or the last
+    request comes from one of TRUSTED_PROXIES; anyone else could send them to
+    fake an IP and dodge the login limit. Behind such a proxy, X-Real-IP or the last
     X-Forwarded-For hop is the one the proxy itself saw."""
     peer = request.client.host if request.client else ""
-    if peer and _is_local_proxy(peer):
+    if peer and _is_trusted_proxy(peer):
         real_ip = request.headers.get("X-Real-IP", "").strip()
         if real_ip:
             return real_ip
@@ -61,7 +63,7 @@ def admin_token(
 
     dbadmin = validate_admin(db, form_data.username, form_data.password)
     if not dbadmin:
-        report.login(form_data.username, form_data.password, client_ip, False)
+        report.login(form_data.username, client_ip, False)
         login_limiter.record_failure(client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,7 +73,7 @@ def admin_token(
 
     login_limiter.record_success(client_ip)
     if client_ip not in LOGIN_NOTIFY_WHITE_LIST:
-        report.login(form_data.username, "🔒", client_ip, True)
+        report.login(form_data.username, client_ip, True)
 
     return Token(access_token=create_admin_token(form_data.username, dbadmin.is_sudo))
 

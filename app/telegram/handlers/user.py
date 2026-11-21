@@ -10,7 +10,7 @@ from app.utils.system import readable_size
 bot.add_custom_filter(ChatFilter())
 
 
-@bot.message_handler(commands=['usage'])
+@bot.message_handler(commands=['usage'], is_admin=True)
 def usage_command(message):
     username = extract_arguments(message.text)
     if not username:
