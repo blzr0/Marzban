@@ -2,6 +2,7 @@ import re
 from datetime import datetime as dt
 
 from dateutil.relativedelta import relativedelta
+from telebot.formatting import escape_html
 
 from app.models.user import User, UserResponse, UserStatus
 from app.models.user_template import UserTemplate
@@ -73,9 +74,9 @@ def get_user_info_text(db_user: User) -> str:
 
 🔌 <b>Online at:</b> {online_at}
 🔄 <b>Subscription updated at:</b> {sub_updated_at}
-📱 <b>Subscription last agent:</b> <blockquote>{user.sub_last_user_agent or "-"}</blockquote>
+📱 <b>Subscription last agent:</b> <blockquote>{escape_html(user.sub_last_user_agent or "-")}</blockquote>
 
-📝 <b>Note:</b> <blockquote expandable>{user.note or "empty"}</blockquote>
+📝 <b>Note:</b> <blockquote expandable>{escape_html(user.note or "empty")}</blockquote>
 👨‍💻 <b>Admin:</b> <code>{db_user.admin.username if db_user.admin else "-"}</code>
 🚀 <b><a href="{user.subscription_url}">Subscription</a>:</b> <code>{user.subscription_url}</code>"""
 
