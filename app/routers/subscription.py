@@ -47,6 +47,9 @@ from config import (
     XRAY_SUBSCRIPTION_PATH,
 )
 
+# Subscription bodies carry proxy credentials: keep them out of CDN and proxy caches.
+NO_CACHE_HEADERS = {"Cache-Control": "no-store, private"}
+
 client_config = {
     "clash-meta": {"config_format": "clash-meta", "media_type": "text/yaml", "as_base64": False, "reverse": False},
     "sing-box": {"config_format": "sing-box", "media_type": "application/json", "as_base64": False, "reverse": False},
@@ -196,6 +199,7 @@ def build_expired_subscription_response(
     announce_text = EXPIRED_SUB_ANNOUNCE.replace("\\n", "\n") if EXPIRED_SUB_ANNOUNCE else None
 
     headers = {
+        **NO_CACHE_HEADERS,
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": support_url,
@@ -233,6 +237,7 @@ def build_stub_subscription_response(
     announce_text = announce.replace("\\n", "\n") if announce else None
 
     headers = {
+        **NO_CACHE_HEADERS,
         "content-disposition": f'attachment; filename="{username}"',
         "profile-web-page-url": str(request.url),
         "support-url": resolved_support_url,
@@ -248,6 +253,7 @@ def build_stub_subscription_response(
 
 def build_response_headers(user: "UserResponse", request: Request) -> dict:
     return {
+        **NO_CACHE_HEADERS,
         "content-disposition": f'attachment; filename="{user.username}"',
         "profile-web-page-url": str(request.url),
         "support-url": SUB_SUPPORT_URL,
