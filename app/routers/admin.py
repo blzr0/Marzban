@@ -1,4 +1,3 @@
-import ipaddress
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -10,38 +9,11 @@ from app.db import Session, crud, get_db
 from app.dependencies import get_admin_by_username, validate_admin
 from app.models.admin import Admin, AdminCreate, AdminModify, Token
 from app.utils import login_limiter, report, responses
+from app.utils.client_ip import get_client_ip
 from app.utils.jwt import create_admin_token
-from config import LOGIN_NOTIFY_WHITE_LIST, TRUSTED_PROXIES
+from config import LOGIN_NOTIFY_WHITE_LIST
 
 router = APIRouter(tags=["Admin"], prefix="/api", responses={401: responses._401})
-
-
-_TRUSTED_PROXY_NETS = [ipaddress.ip_network(p, strict=False) for p in TRUSTED_PROXIES]
-
-
-def _is_trusted_proxy(host: str) -> bool:
-    try:
-        addr = ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    return any(addr in net for net in _TRUSTED_PROXY_NETS)
-
-
-def get_client_ip(request: Request) -> str:
-    """The client's IP address. Proxy headers are only believed when the
-    request comes from one of TRUSTED_PROXIES; anyone else could send them to
-    fake an IP and dodge the login limit. Behind such a proxy, X-Real-IP or the last
-    X-Forwarded-For hop is the one the proxy itself saw."""
-    peer = request.client.host if request.client else ""
-    if peer and _is_trusted_proxy(peer):
-        real_ip = request.headers.get("X-Real-IP", "").strip()
-        if real_ip:
-            return real_ip
-        forwarded_for = request.headers.get("X-Forwarded-For", "")
-        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
-        if hops:
-            return hops[-1]
-    return peer or "Unknown"
 
 
 @router.post("/admin/token", response_model=Token)

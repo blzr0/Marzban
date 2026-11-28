@@ -2,11 +2,13 @@
 Functions for managing proxy hosts, users, user templates, nodes, and administrative tasks.
 """
 
+import hashlib
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import and_, case, delete, func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session, joinedload, selectinload
 from sqlalchemy.sql.functions import coalesce
 
@@ -24,12 +26,15 @@ from app.db.models import (
     ProxyHost,
     ProxyInbound,
     ProxyTypes,
+    SubscriptionLog,
     System,
     User,
+    UserHWID,
     UserTemplate,
     UserUsageResetLogs,
 )
 from app.models.admin import AdminCreate, AdminModify, AdminPartialModify
+from app.models.hwid import SubscriptionLogStatus, SubscriptionRequest
 from app.models.node import NodeCreate, NodeModify, NodeStatus, NodeUsageResponse
 from app.models.proxy import ProxyHost as ProxyHostModify
 from app.models.user import (
@@ -406,6 +411,7 @@ def create_user(db: Session, user: UserCreate, admin: Admin = None) -> User:
         on_hold_expire_duration=(user.on_hold_expire_duration or None),
         on_hold_timeout=(user.on_hold_timeout or None),
         auto_delete_in_days=user.auto_delete_in_days,
+        hwid_limit=user.hwid_limit or 0,
         next_plan=NextPlan(
             data_limit=user.next_plan.data_limit,
             expire=user.next_plan.expire,
@@ -521,6 +527,9 @@ def update_user(db: Session, dbuser: User, modify: UserModify) -> User:
 
     if modify.note is not None:
         dbuser.note = modify.note or None
+
+    if modify.hwid_limit is not None:
+        dbuser.hwid_limit = modify.hwid_limit
 
     if modify.data_limit_reset_strategy is not None:
         dbuser.data_limit_reset_strategy = modify.data_limit_reset_strategy.value
@@ -660,6 +669,137 @@ def update_user_sub(db: Session, dbuser: User, user_agent: str) -> User:
     db.commit()
     db.refresh(dbuser)
     return dbuser
+
+
+def get_user_hwids(db: Session, dbuser: User) -> List[UserHWID]:
+    """The user's registered devices, most recently seen first."""
+    return (db.query(UserHWID)
+            .filter(UserHWID.user_id == dbuser.id)
+            .order_by(UserHWID.last_seen_at.desc())
+            .all())
+
+
+def remove_user_hwid(db: Session, dbuser: User, hwid_id: int) -> bool:
+    """Unbinds one device; False if it isn't the user's."""
+    deleted = (db.query(UserHWID)
+               .filter(UserHWID.user_id == dbuser.id, UserHWID.id == hwid_id)
+               .delete(synchronize_session=False))
+    db.commit()
+    return bool(deleted)
+
+
+def remove_user_hwids(db: Session, dbuser: User) -> int:
+    """Unbinds all of the user's devices, returns how many there were."""
+    deleted = (db.query(UserHWID)
+               .filter(UserHWID.user_id == dbuser.id)
+               .delete(synchronize_session=False))
+    db.commit()
+    return deleted
+
+
+def is_hwid_allowed(db: Session, dbuser: User, hwid: str) -> bool:
+    """A known device always passes; a new one only while the user has free slots."""
+    if not dbuser.hwid_limit:
+        return True
+    if db.query(UserHWID.id).filter(UserHWID.user_id == dbuser.id, UserHWID.hwid == hwid).first():
+        return True
+    count = db.query(func.count(UserHWID.id)).filter(UserHWID.user_id == dbuser.id).scalar()
+    return count < dbuser.hwid_limit
+
+
+def _device_fields(req: SubscriptionRequest) -> dict:
+    return {
+        "device_os": req.device_os,
+        "os_version": req.os_version,
+        "device_model": req.device_model,
+        "user_agent": req.user_agent,
+        "ip": req.ip,
+        "host": req.host,
+    }
+
+
+def _upsert_user_hwid(db: Session, user_id: int, req: SubscriptionRequest, now: datetime) -> None:
+    dbhwid = db.query(UserHWID).filter(UserHWID.user_id == user_id, UserHWID.hwid == req.hwid).first()
+    if dbhwid is None:
+        dbhwid = UserHWID(user_id=user_id, hwid=req.hwid, created_at=now)
+        db.add(dbhwid)
+    for key, value in _device_fields(req).items():
+        setattr(dbhwid, key, value)
+    dbhwid.last_seen_at = now
+
+
+def _upsert_subscription_log(db: Session, user_id: int, status: SubscriptionLogStatus,
+                             req: SubscriptionRequest, now: datetime) -> None:
+    # without a hwid the IP is the best stand-in for "which device"
+    device_key = f"hwid:{req.hwid}" if req.hwid else f"ip:{req.ip}"
+    key = "\x1f".join([device_key, req.user_agent or "", req.host or "", req.request_path or "", status.value])
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+
+    dblog = db.query(SubscriptionLog).filter(
+        SubscriptionLog.user_id == user_id, SubscriptionLog.key_hash == key_hash).first()
+    if dblog is None:
+        dblog = SubscriptionLog(user_id=user_id, key_hash=key_hash, status=status.value, hwid=req.hwid,
+                                request_path=req.request_path, count=0, created_at=now)
+        db.add(dblog)
+    for key, value in _device_fields(req).items():
+        setattr(dblog, key, value)
+    dblog.count += 1
+    dblog.updated_at = now
+
+
+def record_subscription_request(db: Session, user_id: int, status: SubscriptionLogStatus,
+                                req: SubscriptionRequest, register_device: bool = False) -> None:
+    """Logs a subscription fetch and, if `register_device`, binds/refreshes its
+    hwid. Two first fetches from the same device can race on the unique keys:
+    the loser retries once against the row the winner inserted."""
+    for attempt in range(2):
+        now = datetime.utcnow()
+        try:
+            if register_device and req.hwid:
+                _upsert_user_hwid(db, user_id, req, now)
+            _upsert_subscription_log(db, user_id, status, req, now)
+            db.commit()
+            return
+        except IntegrityError:
+            db.rollback()
+            if attempt:
+                raise
+
+
+def get_subscription_logs(db: Session,
+                          offset: Optional[int] = None,
+                          limit: Optional[int] = None,
+                          username: Optional[str] = None,
+                          hwid: Optional[str] = None,
+                          status: Optional[SubscriptionLogStatus] = None,
+                          admin: Optional[Admin] = None) -> Tuple[List[Tuple[SubscriptionLog, str]], int]:
+    """(log, username) pairs, newest first, plus the total matching count.
+    `username` and `hwid` match substrings; `admin` limits to that admin's users."""
+    query = db.query(SubscriptionLog, User.username).join(User, SubscriptionLog.user_id == User.id)
+    if username:
+        query = query.filter(User.username.ilike(f"%{username}%"))
+    if hwid:
+        query = query.filter(SubscriptionLog.hwid.ilike(f"%{hwid}%"))
+    if status:
+        query = query.filter(SubscriptionLog.status == status.value)
+    if admin:
+        query = query.filter(User.admin_id == admin.id)
+
+    total = query.count()
+    query = query.order_by(SubscriptionLog.updated_at.desc(), SubscriptionLog.id.desc())
+    if offset:
+        query = query.offset(offset)
+    if limit:
+        query = query.limit(limit)
+    return query.all(), total
+
+
+def delete_old_subscription_logs(db: Session, older_than: datetime) -> int:
+    deleted = (db.query(SubscriptionLog)
+               .filter(SubscriptionLog.updated_at < older_than)
+               .delete(synchronize_session=False))
+    db.commit()
+    return deleted
 
 
 def reset_all_users_data_usage(db: Session, admin: Optional[Admin] = None):

@@ -84,6 +84,7 @@ class User(BaseModel):
     on_hold_timeout: Optional[Union[datetime, None]] = Field(None, nullable=True)
 
     auto_delete_in_days: Optional[int] = Field(None, nullable=True)
+    hwid_limit: Optional[int] = Field(None, ge=0, description="Max devices (by x-hwid), 0 = unlimited")
 
     next_plan: Optional[NextPlanModel] = Field(None, nullable=True)
 
@@ -354,6 +355,7 @@ class SubscriptionUserResponse(UserResponse):
     note: str | None = Field(None, exclude=True)
     inbounds: Dict[ProxyTypes, List[str]] | None = Field(None, exclude=True)
     auto_delete_in_days: int | None = Field(None, exclude=True)
+    hwid_limit: int | None = Field(None, exclude=True)
     model_config = ConfigDict(from_attributes=True)
 
 

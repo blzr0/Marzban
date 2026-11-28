@@ -182,6 +182,22 @@ REVOKED_SUB_SUPPORT_URL = config("REVOKED_SUB_SUPPORT_URL", default="")
 REVOKED_SUB_UPDATE_INTERVAL = config("REVOKED_SUB_UPDATE_INTERVAL", default="12")
 REVOKED_SUB_ANNOUNCE = config("REVOKED_SUB_ANNOUNCE", default="")
 
+# HWID device limit (users.hwid_limit > 0). Soft mode lets clients that send no
+# x-hwid header (v2rayN, Clash, Streisand...) through; strict mode refuses them.
+HWID_STRICT_MODE = config("HWID_STRICT_MODE", cast=bool, default=False)
+# stub subscription served instead of the config when the limit is hit; the link
+# falls back to the REVOKED/EXPIRED/DELETED stub link, then to a dead placeholder
+HWID_LIMIT_SUB_LINK = config("HWID_LIMIT_SUB_LINK", default="")
+HWID_LIMIT_SUB_TITLES = config("HWID_LIMIT_SUB_TITLES",
+                               default="⚠️ Превышен лимит устройств|💬 Сбросьте устройства через поддержку")
+HWID_MISSING_SUB_TITLES = config("HWID_MISSING_SUB_TITLES",
+                                 default="⚠️ Приложение не поддерживается|📲 Установите Happ")
+HWID_LIMIT_SUB_SUPPORT_URL = config("HWID_LIMIT_SUB_SUPPORT_URL", default="")
+HWID_LIMIT_SUB_UPDATE_INTERVAL = config("HWID_LIMIT_SUB_UPDATE_INTERVAL", default="1")
+HWID_LIMIT_SUB_ANNOUNCE = config("HWID_LIMIT_SUB_ANNOUNCE", default="")
+# subscription log rows untouched for this many days are deleted; 0 keeps them forever
+SUB_LOG_RETENTION_DAYS = config("SUB_LOG_RETENTION_DAYS", cast=int, default=30)
+
 # extra links appended to the end of v2ray-format subscriptions for active users
 EXTRA_SUB_ENABLED = config("EXTRA_SUB_ENABLED", cast=bool, default=False)
 EXTRA_SUB_LINKS = config("EXTRA_SUB_LINKS", default="")

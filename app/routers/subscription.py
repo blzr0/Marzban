@@ -8,9 +8,11 @@ from fastapi.responses import HTMLResponse
 
 from app.db import Session, crud, get_db
 from app.dependencies import ResolvedSub, SubState, get_resolved_sub, get_validated_sub, validate_dates
+from app.models.hwid import SubscriptionLogStatus, SubscriptionRequest
 from app.models.user import SubscriptionUserResponse, UserResponse
 from app.subscription.share import encode_title, generate_stub_subscription, generate_subscription
 from app.templates import is_custom_template, render_template
+from app.utils.client_ip import get_client_ip, get_request_host
 from config import (
     DELETED_SUB_ANNOUNCE,
     DELETED_SUB_LINK,
@@ -26,6 +28,13 @@ from config import (
     EXTRA_SUB_ENABLED,
     EXTRA_SUB_LINKS,
     EXTRA_SUB_REQUIRED_INBOUND,
+    HWID_LIMIT_SUB_ANNOUNCE,
+    HWID_LIMIT_SUB_LINK,
+    HWID_LIMIT_SUB_SUPPORT_URL,
+    HWID_LIMIT_SUB_TITLES,
+    HWID_LIMIT_SUB_UPDATE_INTERVAL,
+    HWID_MISSING_SUB_TITLES,
+    HWID_STRICT_MODE,
     REVOKED_SUB_ANNOUNCE,
     REVOKED_SUB_LINK,
     REVOKED_SUB_SUPPORT_URL,
@@ -66,6 +75,10 @@ EXTRA_SUB_LINKS_LIST = [link.strip() for link in EXTRA_SUB_LINKS.split("|") if l
 EXTRA_SUB_REQUIRED_INBOUND_TAGS = {
     tag.strip() for tag in EXTRA_SUB_REQUIRED_INBOUND.split(",") if tag.strip()
 }
+
+# the HWID stub needs some link to carry its titles; a dead placeholder when no other stub link is set
+HWID_STUB_LINK = (HWID_LIMIT_SUB_LINK or REVOKED_SUB_LINK or EXPIRED_SUB_LINK or DELETED_SUB_LINK
+                  or "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:1?type=tcp&security=none")
 
 
 def get_subscription_user_info(user: UserResponse) -> dict:
@@ -271,6 +284,72 @@ def shows_expired_stub(user: "UserResponse") -> bool:
     return EXPIRED_SUB_ENABLED and bool(EXPIRED_SUB_LINK) and user.status in ("expired", "limited")
 
 
+def _header(request: Request, name: str, max_len: int):
+    return request.headers.get(name, "").strip()[:max_len] or None
+
+
+def build_sub_request(request: Request, user_agent: str) -> SubscriptionRequest:
+    """Device headers (Happ, v2RayTun...), client IP and the domain/path of this
+    fetch. The token in the path is cut to its first 8 characters: it is the
+    subscription's credential and has no business in the logs."""
+    token = request.path_params.get("token", "")
+    path = request.url.path.replace(token, f"{token[:8]}…", 1) if token else request.url.path
+    if request.url.query:
+        path += f"?{request.url.query}"
+    return SubscriptionRequest(
+        hwid=_header(request, "x-hwid", 128),
+        device_os=_header(request, "x-device-os", 64),
+        os_version=_header(request, "x-ver-os", 64),
+        device_model=_header(request, "x-device-model", 128),
+        user_agent=user_agent.strip()[:512] or None,
+        ip=get_client_ip(request)[:64],
+        host=get_request_host(request)[:255] or None,
+        request_path=path[:512],
+    )
+
+
+def resolve_hwid_status(db: Session, dbuser, req: SubscriptionRequest) -> SubscriptionLogStatus:
+    """Whether this device may get the config under the user's hwid_limit.
+    Clients that send no x-hwid pass unless HWID_STRICT_MODE is on."""
+    if not dbuser.hwid_limit:
+        return SubscriptionLogStatus.ok
+    if not req.hwid:
+        return SubscriptionLogStatus.hwid_missing if HWID_STRICT_MODE else SubscriptionLogStatus.ok
+    if crud.is_hwid_allowed(db, dbuser, req.hwid):
+        return SubscriptionLogStatus.ok
+    return SubscriptionLogStatus.hwid_limit_exceeded
+
+
+def serve_live_subscription(db: Session, dbuser, request: Request, config_format: str, reverse: bool,
+                            user_agent: str) -> Response:
+    """The config for a live token: the expired stub, the HWID stub when the
+    device is refused, or the real subscription. Every outcome is logged; only
+    a served config registers the device and bumps sub_updated_at."""
+    req = build_sub_request(request, user_agent)
+    user: UserResponse = UserResponse.model_validate(dbuser)
+
+    if shows_expired_stub(user):
+        crud.update_user_sub(db, dbuser, user_agent)
+        crud.record_subscription_request(db, dbuser.id, SubscriptionLogStatus.expired, req)
+        return build_expired_subscription_response(user, request, config_format, reverse)
+
+    status = resolve_hwid_status(db, dbuser, req)
+    if status is not SubscriptionLogStatus.ok:
+        crud.record_subscription_request(db, dbuser.id, status, req)
+        return build_stub_subscription_response(
+            user.username, request,
+            link=HWID_STUB_LINK,
+            titles=HWID_MISSING_SUB_TITLES if status is SubscriptionLogStatus.hwid_missing else HWID_LIMIT_SUB_TITLES,
+            support_url=HWID_LIMIT_SUB_SUPPORT_URL, update_interval=HWID_LIMIT_SUB_UPDATE_INTERVAL,
+            announce=HWID_LIMIT_SUB_ANNOUNCE, config_format=config_format, reverse=reverse,
+        )
+
+    crud.update_user_sub(db, dbuser, user_agent)
+    crud.record_subscription_request(db, dbuser.id, SubscriptionLogStatus.ok, req, register_device=True)
+    return build_subscription_response(user, build_response_headers(user, request), config_format, reverse,
+                                       user_agent)
+
+
 def build_subscription_page(user: "UserResponse", request: Request) -> HTMLResponse:
     """HTML subscription page. `show_keys` is True when the URL has a `key`
     query parameter (any value). A custom page template gets the user without
@@ -315,6 +394,8 @@ def user_subscription(
             # no user object to render the subscription page with, and the
             # link may not belong to the account owner regardless
             raise HTTPException(status_code=404, detail="Not Found")
+        crud.record_subscription_request(db, sub_result.user_id, SubscriptionLogStatus.revoked,
+                                         build_sub_request(request, user_agent))
         return build_stub_subscription_response(
             sub_result.username, request,
             link=REVOKED_SUB_LINK, titles=REVOKED_SUB_TITLES,
@@ -323,18 +404,11 @@ def user_subscription(
         )
 
     dbuser = sub_result.dbuser
-    user: UserResponse = UserResponse.model_validate(dbuser)
 
     if "text/html" in accept_header:
-        return build_subscription_page(user, request)
+        return build_subscription_page(UserResponse.model_validate(dbuser), request)
 
-    crud.update_user_sub(db, dbuser, user_agent)
-
-    if shows_expired_stub(user):
-        return build_expired_subscription_response(user, request, config_format, reverse)
-
-    return build_subscription_response(user, build_response_headers(user, request), config_format, reverse,
-                                       user_agent)
+    return serve_live_subscription(db, dbuser, request, config_format, reverse, user_agent)
 
 
 @router.get("/{token}/info", response_model=SubscriptionUserResponse)
@@ -369,11 +443,5 @@ def user_subscription_with_client_type(
     user_agent: str = Header(default="")
 ):
     """Provides a subscription link based on the specified client type (e.g., Clash, V2Ray)."""
-    user: UserResponse = UserResponse.model_validate(dbuser)
     reverse = client_config[client_type]["reverse"]
-
-    if shows_expired_stub(user):
-        return build_expired_subscription_response(user, request, client_type, reverse)
-
-    return build_subscription_response(user, build_response_headers(user, request), client_type, reverse,
-                                       user_agent)
+    return serve_live_subscription(db, dbuser, request, client_type, reverse, user_agent)

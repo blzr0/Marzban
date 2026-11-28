@@ -17,6 +17,7 @@ import {
   Cog6ToothIcon,
   CurrencyDollarIcon,
   DocumentMinusIcon,
+  DocumentTextIcon,
   LinkIcon,
   MoonIcon,
   SquaresPlusIcon,
@@ -53,6 +54,7 @@ const HostsIcon = chakra(LinkIcon, iconProps);
 const NodesIcon = chakra(SquaresPlusIcon, iconProps);
 const NodesUsageIcon = chakra(ChartPieIcon, iconProps);
 const ResetUsageIcon = chakra(DocumentMinusIcon, iconProps);
+const SubscriptionLogsIcon = chakra(DocumentTextIcon, iconProps);
 const NotificationCircle = chakra(Box, {
   baseStyle: {
     bg: "yellow.500",
@@ -95,6 +97,7 @@ export const Header: FC<HeaderProps> = ({ actions }) => {
     onResetAllUsage,
     onEditingNodes,
     onShowingNodesUsage,
+    onShowingSubscriptionLogs,
   } = useDashboard();
   const { t } = useTranslation();
   const { colorMode, toggleColorMode } = useColorMode();
@@ -175,6 +178,14 @@ export const Header: FC<HeaderProps> = ({ actions }) => {
                   </MenuItem>
                 </>
               )}
+              <MenuItem
+                maxW="170px"
+                fontSize="sm"
+                icon={<SubscriptionLogsIcon />}
+                onClick={() => onShowingSubscriptionLogs("")}
+              >
+                {t("subscriptionLogs.title")}
+              </MenuItem>
               <Link to={DONATION_URL} target="_blank">
                 <MenuItem
                   maxW="170px"

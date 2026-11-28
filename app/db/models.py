@@ -68,6 +68,8 @@ class User(Base):
     used_traffic = Column(BigInteger, default=0)
     node_usages = relationship("NodeUserUsage", back_populates="user", cascade="all, delete-orphan")
     notification_reminders = relationship("NotificationReminder", back_populates="user", cascade="all, delete-orphan")
+    hwids = relationship("UserHWID", back_populates="user", cascade="all, delete-orphan")
+    subscription_logs = relationship("SubscriptionLog", back_populates="user", cascade="all, delete-orphan")
     data_limit = Column(BigInteger, nullable=True)
     data_limit_reset_strategy = Column(
         Enum(UserDataLimitResetStrategy),
@@ -81,6 +83,8 @@ class User(Base):
     sub_revoked_at = Column(DateTime, nullable=True, default=None)
     sub_updated_at = Column(DateTime, nullable=True, default=None)
     sub_last_user_agent = Column(String(512), nullable=True, default=None)
+    # devices allowed to fetch the subscription (by x-hwid header); 0 = unlimited
+    hwid_limit = Column(Integer, nullable=False, default=0, server_default=text("0"))
     created_at = Column(DateTime, default=datetime.utcnow)
     note = Column(String(500), nullable=True, default=None)
     online_at = Column(DateTime, nullable=True, default=None)
@@ -350,3 +354,47 @@ class NotificationReminder(Base):
     threshold = Column(Integer, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserHWID(Base):
+    """A device (x-hwid header) that fetched the user's subscription."""
+    __tablename__ = "user_hwids"
+    __table_args__ = (UniqueConstraint("user_id", "hwid"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user = relationship("User", back_populates="hwids")
+    hwid = Column(String(128), nullable=False)
+    device_os = Column(String(64), nullable=True)
+    os_version = Column(String(64), nullable=True)
+    device_model = Column(String(128), nullable=True)
+    user_agent = Column(String(512), nullable=True)
+    ip = Column(String(64), nullable=True)
+    host = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SubscriptionLog(Base):
+    """Subscription fetches, one row per distinct (device, client, domain, path,
+    outcome): repeats bump `count` and `updated_at` instead of adding rows.
+    `key_hash` is a sha256 of that tuple, so the unique key stays short on MySQL."""
+    __tablename__ = "subscription_logs"
+    __table_args__ = (UniqueConstraint("user_id", "key_hash"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user = relationship("User", back_populates="subscription_logs")
+    key_hash = Column(String(64), nullable=False)
+    status = Column(String(32), nullable=False, index=True)
+    hwid = Column(String(128), nullable=True, index=True)
+    device_os = Column(String(64), nullable=True)
+    os_version = Column(String(64), nullable=True)
+    device_model = Column(String(128), nullable=True)
+    user_agent = Column(String(512), nullable=True)
+    ip = Column(String(64), nullable=True)
+    host = Column(String(255), nullable=True)
+    request_path = Column(String(512), nullable=True)
+    count = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)

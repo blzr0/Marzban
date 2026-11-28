@@ -51,6 +51,9 @@ type DashboardStateType = {
   resetUsageUser: User | null;
   revokeSubscriptionUser: User | null;
   isEditingCore: boolean;
+  // open subscription logs modal, pre-filtered by username ("" = all users)
+  subscriptionLogsUsername: string | null;
+  onShowingSubscriptionLogs: (username: string | null) => void;
   onCreateUser: (isOpen: boolean) => void;
   onEditingUser: (user: User | null) => void;
   onDeletingUser: (user: User | null) => void;
@@ -136,6 +139,8 @@ export const useDashboard = create(
     },
     inbounds: new Map(),
     isEditingCore: false,
+    subscriptionLogsUsername: null,
+    onShowingSubscriptionLogs: (subscriptionLogsUsername) => set({ subscriptionLogsUsername }),
     refetchUsers: () => {
       fetchUsers(get().filters);
       fetchUsageStats();

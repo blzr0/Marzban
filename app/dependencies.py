@@ -119,11 +119,13 @@ class ResolvedSub:
     still exists in the DB: the link may be held by someone other than the
     account owner, so real account data (traffic, expiry, status) must never
     reach the response for a revoked link. Only `username` (from the token)
-    is available in that case, same as DELETED.
+    is available in that case, same as DELETED. `user_id` is set for REVOKED
+    only so the fetch can be logged; it never reaches the response.
     """
     state: SubState = SubState.LIVE
     dbuser: Optional[UserResponse] = None
     username: Optional[str] = None
+    user_id: Optional[int] = None
 
 
 def get_resolved_sub(
@@ -156,7 +158,7 @@ def get_resolved_sub(
 
     if dbuser.sub_revoked_at and dbuser.sub_revoked_at > sub['created_at']:
         if REVOKED_SUB_ENABLED and REVOKED_SUB_LINK and REVOKED_SUB_TITLES:
-            return ResolvedSub(state=SubState.REVOKED, username=sub['username'])
+            return ResolvedSub(state=SubState.REVOKED, username=sub['username'], user_id=dbuser.id)
         raise HTTPException(status_code=404, detail="Not Found")
 
     return ResolvedSub(state=SubState.LIVE, dbuser=dbuser)

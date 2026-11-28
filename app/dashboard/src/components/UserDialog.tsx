@@ -33,6 +33,7 @@ import {
 } from "@chakra-ui/react";
 import {
   ChartPieIcon,
+  DocumentTextIcon,
   PencilIcon,
   UserPlusIcon,
 } from "@heroicons/react/24/outline";
@@ -58,6 +59,7 @@ import { DeleteIcon } from "./DeleteUserModal";
 import { Icon } from "./Icon";
 import { Input } from "./Input";
 import { RadioGroup } from "./RadioGroup";
+import { UserHWIDs } from "./UserHWIDs";
 import { UsageFilter, createUsageConfig } from "./UsageFilter";
 import { ReloadIcon } from "./Filters";
 import classNames from "classnames";
@@ -77,6 +79,13 @@ const EditUserIcon = chakra(PencilIcon, {
 });
 
 const UserUsageIcon = chakra(ChartPieIcon, {
+  baseStyle: {
+    w: 5,
+    h: 5,
+  },
+});
+
+const SubscriptionLogsIcon = chakra(DocumentTextIcon, {
   baseStyle: {
     w: 5,
     h: 5,
@@ -116,6 +125,7 @@ const getDefaultValues = (): FormType => {
     status: "active",
     on_hold_expire_duration: null,
     note: "",
+    hwid_limit: 0,
     inbounds,
     proxies: {
       vless: { id: "", flow: "" },
@@ -150,6 +160,8 @@ const baseSchema = {
     message: "userDialog.selectOneProtocol",
   }),
   note: z.string().nullable(),
+  // empty input means 0 = no device limit
+  hwid_limit: z.coerce.number().int().min(0),
   proxies: z
     .record(z.string(), z.record(z.string(), z.any()))
     .transform((ins) => {
@@ -239,6 +251,7 @@ export const UserDialog: FC<UserDialogProps> = () => {
     onEditingUser,
     createUser,
     onDeletingUser,
+    onShowingSubscriptionLogs,
   } = useDashboard();
   const isEditing = !!editingUser;
   const isOpen = isCreatingNewUser || isEditing;
@@ -735,6 +748,34 @@ export const UserDialog: FC<UserDialogProps> = () => {
                         )}
                       </FormControl>
 
+                      <FormControl mb={"10px"}>
+                        <FormLabel>{t("userDialog.hwidLimit")}</FormLabel>
+                        <Controller
+                          control={form.control}
+                          name="hwid_limit"
+                          render={({ field }) => {
+                            return (
+                              <Input
+                                type="number"
+                                size="sm"
+                                borderRadius="6px"
+                                min={0}
+                                onChange={field.onChange}
+                                disabled={disabled}
+                                error={
+                                  form.formState.errors.hwid_limit?.message
+                                }
+                                value={field.value ? String(field.value) : ""}
+                                placeholder={t("userDialog.hwidLimitUnlimited")}
+                              />
+                            );
+                          }}
+                        />
+                        <FormHelperText>
+                          {t("userDialog.hwidLimitHelp")}
+                        </FormHelperText>
+                      </FormControl>
+
                       <FormControl
                         mb={"10px"}
                         isInvalid={!!form.formState.errors.note}
@@ -846,6 +887,14 @@ export const UserDialog: FC<UserDialogProps> = () => {
                     </FormErrorMessage>
                   </FormControl>
                 </GridItem>
+                {isEditing && editingUser && (
+                  <GridItem pt={4} colSpan={{ base: 1, md: 2 }} borderTopWidth="1px">
+                    <UserHWIDs
+                      username={editingUser.username}
+                      hwidLimit={editingUser.hwid_limit || 0}
+                    />
+                  </GridItem>
+                )}
                 {isEditing && usageVisible && (
                   <GridItem pt={6} colSpan={{ base: 1, md: 2 }}>
                     <VStack gap={4}>
@@ -919,6 +968,17 @@ export const UserDialog: FC<UserDialogProps> = () => {
                           onClick={handleUsageToggle}
                         >
                           <UserUsageIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip label={t("subscriptionLogs.title")} placement="top">
+                        <IconButton
+                          aria-label="subscription logs"
+                          size="sm"
+                          onClick={() =>
+                            onShowingSubscriptionLogs(editingUser!.username)
+                          }
+                        >
+                          <SubscriptionLogsIcon />
                         </IconButton>
                       </Tooltip>
                       <Button onClick={handleResetUsage} size="sm">

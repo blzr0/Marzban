@@ -61,6 +61,7 @@ export type User = {
   online_at: string;
   sub_last_user_agent: string | null;
   sub_updated_at: string | null;
+  hwid_limit: number;
   last_traffic_reset_time: string | null;
   next_traffic_reset_time: string | null;
 };
@@ -76,7 +77,45 @@ export type UserCreate = Pick<
   | "username"
   | "status"
   | "note"
+  | "hwid_limit"
 >;
+
+export type UserHWID = {
+  id: number;
+  hwid: string;
+  device_os: string | null;
+  os_version: string | null;
+  device_model: string | null;
+  user_agent: string | null;
+  ip: string | null;
+  host: string | null;
+  created_at: string;
+  last_seen_at: string;
+};
+
+export type SubscriptionLogStatus =
+  | "ok"
+  | "expired"
+  | "revoked"
+  | "hwid_limit_exceeded"
+  | "hwid_missing";
+
+export type SubscriptionLog = {
+  id: number;
+  username: string;
+  status: SubscriptionLogStatus;
+  hwid: string | null;
+  device_os: string | null;
+  os_version: string | null;
+  device_model: string | null;
+  user_agent: string | null;
+  ip: string | null;
+  host: string | null;
+  request_path: string | null;
+  count: number;
+  created_at: string;
+  updated_at: string;
+};
 
 export type UserApi = {
   discord_webook: string;
